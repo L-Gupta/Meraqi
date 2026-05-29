@@ -1,0 +1,189 @@
+FINANCIAL DUE DILIGENCE (FDD) ENGINE — PROJECT PLAN
+=====================================================
+POC for M&A Transaction Advisory Services (TAS)
+Big 4-quality analysis. Local dev now → Cloud later.
+Last updated: 2026-05-28
+
+MISSION
+-------
+Ingest raw corporate financial records (GL exports, trial balances, sales
+registers, PDF contracts) and output a fully audited, interactive investment
+advisory suite. Replicate the analytical rigor of Big 4 TAS workflows at
+machine speed.
+
+CORE PRINCIPLES
+---------------
+1. Determinism First
+   - All financial arithmetic is Python/Pandas. Never LLM.
+   - Every number is traceable to a source GL line (line_id + source_row).
+
+2. LLMs for Semantics Only
+   - Chart of Accounts mapping (unknown GL code → standard category)
+   - QoE adjustment review (confirm/reject rule-detected candidates)
+   - Red Flag enrichment (diligence questions, qualitative context)
+   - PDF contract parsing (key terms, obligations, change-of-control)
+   - Narrative drafting (executive summary)
+
+3. Audit Trail by Design
+   - Every QoE adjustment references source GL line IDs
+   - Every Red Flag references source data (GL lines or document)
+   - Adjustment ledger is immutable (append-only)
+
+4. Cloud-Ready from Day One
+   - Storage abstraction layer (swap JSON files → S3/Blob later)
+   - Config via environment variables (never hardcoded)
+   - Stateless API (no server-side session state)
+   - Background tasks (swap FastAPI BackgroundTasks → Celery+Redis later)
+
+TECH STACK
+----------
+Backend:
+  - FastAPI + Uvicorn (async, auto OpenAPI docs)
+  - Pandas 2.x + NumPy (all financial math)
+  - Pydantic v2 (schema validation at every boundary)
+  - OpenAI Python SDK (LLM agents, with mock mode)
+    gpt-4o-mini for testing / gpt-4o for production
+  - pdfplumber + PyMuPDF (PDF extraction)
+  - OpenPyXL (Excel databook generation)
+  - pydantic-settings (config from .env)
+
+Frontend (Phase 3):
+  - React 18 + TypeScript 5 + Vite 5
+  - Recharts (QoE waterfall bridge chart, NWC trend lines)
+  - TanStack Table v8 (Red Flag table, Adjustment Ledger)
+  - TanStack Query v5 (async job polling)
+  - TailwindCSS 3 + shadcn/ui (styling)
+  - React Router v6
+
+KEY DATA SCHEMAS
+----------------
+RawGLLine:
+  line_id (UUID) | deal_id | period (date) | account_code | account_description
+  amount (Decimal, signed) | entity | cost_center | source_file | source_row
+
+MappedGLLine extends RawGLLine:
+  standard_category (ChartOfAccountsCategory enum)
+  financial_statement ("PnL" | "BalanceSheet" | "Memo")
+  is_ebitda_component (bool) | is_nwc_component (bool)
+  mapping_confidence (float 0-1) | mapping_source ("llm"|"rule"|"manual")
+  mapping_reasoning (str | None)
+
+QoEAdjustment:
+  adjustment_id (UUID) | deal_id | period | label | category
+  direction ("add_back" | "deduction")
+  reported_amount | adjustment_amount | normalized_amount (all Decimal)
+  source_gl_line_ids (list[str]) -- FULL AUDIT TRAIL
+  detection_method ("rule"|"llm"|"manual") | rule_triggered | llm_reviewed
+  llm_reasoning | llm_confidence | analyst_approved | created_at
+
+RedFlag:
+  flag_id (UUID) | deal_id | severity ("High"|"Medium"|"Low"|"Informational")
+  category | title (max 80 chars) | description
+  financial_impact_low | financial_impact_high (Decimal | None)
+  affected_periods (list[date])
+  source ("rule_engine"|"llm_analysis"|"contract_parser")
+  source_gl_line_ids | source_document
+  diligence_questions (list[str]) | llm_context | created_at
+
+NWCDataPoint:
+  period | accounts_receivable | inventory | prepaid_expenses
+  other_current_assets | accounts_payable | accrued_liabilities
+  deferred_revenue | other_current_liabilities
+  net_working_capital (computed) | nwc_as_pct_revenue
+
+NWCPeg:
+  method ("ltm_average"|"median_trailing_12"|"seasonal_adjusted")
+  peg_amount | confidence_interval_low | confidence_interval_high
+  seasonality_detected | recommended | rationale
+
+API ENDPOINTS
+-------------
+POST   /api/v1/deals                           Create deal → {deal_id}
+POST   /api/v1/deals/{id}/upload               Upload files → {job_id}
+POST   /api/v1/deals/{id}/process              Trigger pipeline → {job_id}
+GET    /api/v1/deals/{id}/status               Poll status → {stages, progress_pct}
+
+GET    /api/v1/deals/{id}/financials/pnl       P&L (monthly|quarterly|annual)
+GET    /api/v1/deals/{id}/financials/balance-sheet
+GET    /api/v1/deals/{id}/financials/cash-flow
+
+GET    /api/v1/deals/{id}/qoe                  QoE report + waterfall[]
+GET    /api/v1/deals/{id}/qoe/adjustments/{adj_id}/source  GL drill-through
+
+GET    /api/v1/deals/{id}/redflags             Flags (filterable by severity)
+
+GET    /api/v1/deals/{id}/nwc                  [Phase 4]
+GET    /api/v1/deals/{id}/commercial           [Phase 4]
+
+POST   /api/v1/deals/{id}/contracts/analyze    [Phase 5]
+GET    /api/v1/deals/{id}/contracts            [Phase 5]
+
+POST   /api/v1/deals/{id}/databook/export      Excel binary stream [Phase 5]
+
+All amounts: serialized as string (Decimal) in JSON.
+Errors: {"detail": str, "error_code": str}
+
+IMPLEMENTATION SEQUENCE
+-----------------------
+Step 1  [NOW]    Backend foundation: FastAPI + storage + ingestion API
+Step 2  [NEXT]   GL ingestion pipeline: load, normalize, validate
+Step 3           CoA mapper (mock LLM) + Financial Statement Builder
+Step 4           QoE Engine + Red Flag Detector
+Step 5           React frontend dashboard (Upload + QoE Center + Red Flags)
+Step 6           NWC Analyzer + Commercial Health Analyzer
+Step 7           PDF Contract Parser
+Step 8           Databook Export + Narrative Drafter
+
+RED FLAG DETECTION RULES (implemented in Step 4)
+-------------------------------------------------
+HIGH severity:
+  - Single customer revenue concentration > 20%
+  - Related-party revenue > 5% of total
+  - Cash flow conversion < 60% of EBITDA for 2+ consecutive years
+  - Deferred revenue declining (channel-stuffing / pull-forward risk)
+
+MEDIUM severity:
+  - EBITDA margin decline > 300bps year-over-year
+  - Owner compensation > 15% of revenue
+  - Accounts Receivable days > 90
+  - NWC volatility (std dev / mean > 0.3)
+
+LOW / INFORMATIONAL:
+  - Customer count declining without revenue decline
+  - Significant seasonality in revenue (>40% Q4 concentration)
+
+LLM AGENT ARCHITECTURE
+-----------------------
+Golden Rule: Agents receive Pydantic models IN, return Pydantic models OUT.
+             They never touch DataFrames or perform arithmetic.
+             LLM-returned numbers = display strings only, never computed values.
+
+Mock Mode: USE_MOCK_LLM=true in .env → agents return fixture responses.
+           Full pipeline works without Anthropic API key.
+
+Prompt Caching: OpenAI caches prompts automatically server-side for longer inputs.
+                No client-side cache_control headers required.
+
+Structured Output: All agents use Claude tool_use for JSON output.
+                   Eliminates JSON parsing errors.
+
+STORAGE STRUCTURE (local POC)
+------------------------------
+data/
+  deals/{deal_id}.json        -- Deal metadata + processing status
+  uploads/{deal_id}/          -- Raw uploaded files
+  processed/{deal_id}/        -- Normalized GL, mapped GL, computed outputs
+    raw_gl.json
+    mapped_gl.json
+    financials.json
+    qoe.json
+    redflags.json
+
+GETTING AN OPENAI API KEY
+--------------------------
+1. Go to platform.openai.com/api-keys
+2. Create account, add billing method
+3. Generate API key (starts with sk-...)
+4. Add to .env: OPENAI_API_KEY=sk-...
+5. Set USE_MOCK_LLM=false
+6. Optionally set OPENAI_MODEL=gpt-4o for higher quality (default: gpt-4o-mini)
