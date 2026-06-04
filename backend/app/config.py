@@ -15,11 +15,12 @@ class Settings(BaseSettings):
         env_file=_ENV_FILES,
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
-    # OpenAI
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"  # cheap for testing; swap to gpt-4o for production
+    # Anthropic
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-3-5-sonnet-latest"
     use_mock_llm: bool = True  # Default True: full pipeline works without an API key
 
     # Storage — relative to wherever the server is launched from
@@ -28,7 +29,12 @@ class Settings(BaseSettings):
     processed_dir: Path = Path("data/processed")
 
     # Server
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ]
     log_level: str = "INFO"
 
 

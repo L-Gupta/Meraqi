@@ -20,20 +20,20 @@ import logging
 import time
 from typing import Any
 
-from openai import AsyncOpenAI, APIStatusError, APIConnectionError, RateLimitError
+from anthropic import AsyncAnthropic, APIStatusError, APIConnectionError, RateLimitError
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 # Singleton async client — created once, reused across all agents
-_client: AsyncOpenAI | None = None
+_client: AsyncAnthropic | None = None
 
 
-def get_client() -> AsyncOpenAI:
+def get_client() -> AsyncAnthropic:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(api_key=settings.openai_api_key)
+        _client = AsyncAnthropic(api_key=settings.anthropic_api_key)
     return _client
 
 
@@ -74,28 +74,58 @@ class BaseAgent:
         return result
 
     async def _call(self, payload: Any, *, max_retries: int = 3) -> Any:
-        """Call the OpenAI API with retry on transient errors."""
+        """Call the Anthropic API with retry on transient errors."""
         messages = self._build_messages(payload)
         last_exc: Exception | None = None
+
+        # 1. Extract system prompt if present in messages (Anthropic expects it as a top-level parameter)
+        system_prompt: str | None = None
+        api_messages: list[dict[str, Any]] = []
+        for m in messages:
+            if m.get("role") == "system":
+                system_prompt = m.get("content")
+            else:
+                api_messages.append({
+                    "role": m["role"],
+                    "content": m["content"]
+                })
+
+        # 2. Format tools from OpenAI format to Anthropic format if self._tools is set
+        anthropic_tools = []
+        if self._tools:
+            for tool in self._tools:
+                if tool.get("type") == "function" and "function" in tool:
+                    func = tool["function"]
+                    anthropic_tools.append({
+                        "name": func["name"],
+                        "description": func.get("description", ""),
+                        "input_schema": func.get("parameters", {"type": "object", "properties": {}})
+                    })
+                else:
+                    anthropic_tools.append(tool)
 
         for attempt in range(max_retries):
             try:
                 kwargs: dict[str, Any] = {
-                    "model": settings.openai_model,
-                    "messages": messages,
-                    "temperature": 0,  # Deterministic output — critical for financial classification
+                    "model": settings.anthropic_model,
+                    "messages": api_messages,
+                    "temperature": 0.0,
+                    "max_tokens": 4000,
                 }
-                if self._tools:
-                    kwargs["tools"] = self._tools
-                    kwargs["tool_choice"] = "required"
+                if system_prompt:
+                    kwargs["system"] = system_prompt
+                if anthropic_tools:
+                    kwargs["tools"] = anthropic_tools
+                    kwargs["tool_choice"] = {"type": "any"}
 
-                resp = await get_client().chat.completions.create(**kwargs)
+                resp = await get_client().messages.create(**kwargs)
 
                 usage = resp.usage
                 if usage:
                     logger.info(
-                        "[%s] tokens — prompt: %d, completion: %d, total: %d",
-                        self.name, usage.prompt_tokens, usage.completion_tokens, usage.total_tokens,
+                        "[%s] tokens — input: %d, output: %d, total: %d",
+                        self.name, usage.input_tokens, usage.output_tokens,
+                        usage.input_tokens + usage.output_tokens,
                     )
 
                 return self._parse_response(resp)

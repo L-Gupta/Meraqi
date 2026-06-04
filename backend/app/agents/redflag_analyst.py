@@ -150,11 +150,10 @@ class RedFlagAnalystAgent(BaseAgent):
         ]
 
     def _parse_response(self, response: Any) -> dict:
-        choice = response.choices[0]
-        if not choice.message.tool_calls:
+        tool_use = next((b for b in response.content if b.type == "tool_use"), None)
+        if not tool_use:
             raise AgentError("[RedFlagAnalyst] no tool call in response")
-        raw = choice.message.tool_calls[0].function.arguments
-        data = json.loads(raw)
+        data = tool_use.input
         enrichments = data.get("enrichments", [])
         return enrichments[0] if enrichments else {}
 
