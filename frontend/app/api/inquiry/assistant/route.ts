@@ -89,65 +89,48 @@ function fallbackAnswer(question: string, snapshot: ReturnType<typeof buildSnaps
   return `From the current dashboard: overall deal risk is ${snapshot.overallRisk}, revenue is ${snapshot.revenue}, adjusted EBITDA is ${snapshot.adjustedEbitda}, cash conversion is ${snapshot.cashConversion}, and top-10 concentration is ${snapshot.top10Concentration}. Ask about revenue, risk, tie-outs, documents, or inquiries for a deeper breakdown.`;
 }
 
-async function callOpenAI(question: string, snapshotText: string) {
-  const apiKey = process.env.OPENAI_API_KEY;
+async function callAnthropic(question: string, snapshotText: string) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
-  const model = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const model = process.env.ANTHROPIC_MODEL ?? "claude-3-5-sonnet-latest";
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
       model,
       temperature: 0.2,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: "You are TAM Inquiry Copilot for financial due diligence. Answer clearly, use only provided dashboard context, do not invent data, and keep the answer concise and actionable.",
-            },
-          ],
-        },
+      max_tokens: 1024,
+      system: "You are TAM Inquiry Copilot for financial due diligence. Answer clearly, use only provided dashboard context, do not invent data, and keep the answer concise and actionable.",
+      messages: [
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: `Dashboard context:\n${snapshotText}\n\nUser question: ${question}`,
-            },
-          ],
+          content: `Dashboard context:\n${snapshotText}\n\nUser question: ${question}`,
         },
       ],
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status}`);
+    throw new Error(`Anthropic API error: ${response.status}`);
   }
 
   const json = (await response.json()) as {
-    output_text?: string;
-    output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+    content?: Array<{ type?: string; text?: string }>;
   };
 
-  if (json.output_text && json.output_text.trim().length > 0) {
-    return { answer: json.output_text.trim(), model };
-  }
-
-  const fallbackText = json.output
-    ?.flatMap((item) => item.content ?? [])
-    .filter((c) => c.type === "output_text" || c.type === "text")
+  const text = json.content
+    ?.filter((c) => c.type === "text")
     .map((c) => c.text ?? "")
     .join("\n")
     .trim();
 
-  if (fallbackText) {
-    return { answer: fallbackText, model };
+  if (text) {
+    return { answer: text, model };
   }
 
   return { answer: "I could not generate a response from the model output.", model };
@@ -168,7 +151,7 @@ export async function POST(request: Request) {
     const snapshotText = formatSnapshot(snapshot);
 
     try {
-      const llm = await callOpenAI(body.question, snapshotText);
+      const llm = await callAnthropic(body.question, snapshotText);
       if (llm) {
         return Response.json({
           answer: llm.answer,

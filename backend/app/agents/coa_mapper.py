@@ -237,12 +237,11 @@ class CoAMapperAgent(BaseAgent):
         ]
 
     def _parse_response(self, response: Any) -> dict[str, dict]:
-        choice = response.choices[0]
-        if not choice.message.tool_calls:
+        tool_use = next((b for b in response.content if b.type == "tool_use"), None)
+        if not tool_use:
             raise AgentError("[CoAMapper] no tool call in response — cannot extract classifications")
 
-        raw = choice.message.tool_calls[0].function.arguments
-        data = json.loads(raw)
+        data = tool_use.input
         out: dict[str, dict] = {}
         for item in data.get("classifications", []):
             code = item["account_code"]

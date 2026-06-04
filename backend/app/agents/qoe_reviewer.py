@@ -110,11 +110,10 @@ class QoEReviewerAgent(BaseAgent):
         ]
 
     def _parse_response(self, response: Any) -> list[dict]:
-        choice = response.choices[0]
-        if not choice.message.tool_calls:
+        tool_use = next((b for b in response.content if b.type == "tool_use"), None)
+        if not tool_use:
             raise AgentError("[QoEReviewer] no tool call in response")
-        raw = choice.message.tool_calls[0].function.arguments
-        return json.loads(raw).get("decisions", [])
+        return tool_use.input.get("decisions", [])
 
     def _mock_response(self, payload: list[QoEAdjustment]) -> list[dict]:
         """Mock: accept every candidate — reasonable default for development."""
