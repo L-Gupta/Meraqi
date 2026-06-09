@@ -41,6 +41,7 @@ def validate(lines: list[RawGLLine], deal_id: str) -> ValidationReport:
             difference=Decimal("0"),
             is_balanced=False,
             periods_checked=0,
+            is_pl_only_export=False,
             warnings=["No GL lines to validate"],
         )
 
@@ -76,7 +77,8 @@ def validate(lines: list[RawGLLine], deal_id: str) -> ValidationReport:
         for line in lines
         if line.account_code and line.account_code[0].isdigit()
     )
-    if unbalanced_periods and not has_bs_lines:
+    is_pl_only_export = not has_bs_lines
+    if unbalanced_periods and is_pl_only_export:
         warnings.append(
             f"Per-period imbalance in {len(unbalanced_periods)} period(s) — "
             "this is expected for P&L-only exports (no balance sheet accounts). "
@@ -135,5 +137,6 @@ def validate(lines: list[RawGLLine], deal_id: str) -> ValidationReport:
         tolerance=BALANCE_TOLERANCE,
         periods_checked=periods_checked,
         unbalanced_periods=unbalanced_periods,
+        is_pl_only_export=is_pl_only_export,
         warnings=warnings,
     )

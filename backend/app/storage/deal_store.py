@@ -53,6 +53,9 @@ def create_deal(company_name: str, deal_name: str, currency: str = "USD") -> dic
             "financial_builder": "pending",
             "qoe_engine": "pending",
             "redflag_detector": "pending",
+            "nwc_analyzer": "pending",
+            "dcf_engine": "pending",
+            "net_debt_bridge": "pending",
         },
         "progress_pct": 0,
         "uploaded_files": [],
@@ -87,7 +90,10 @@ def set_stage_status(deal_id: str, stage: str, status: str) -> dict:
     deal["stages"][stage] = status
 
     # Recompute overall progress
-    stage_order = ["ingestion", "coa_mapping", "financial_builder", "qoe_engine", "redflag_detector"]
+    stage_order = [
+        "ingestion", "coa_mapping", "financial_builder", "qoe_engine", "redflag_detector",
+        "nwc_analyzer", "dcf_engine", "net_debt_bridge",
+    ]
     completed = sum(1 for s in stage_order if deal["stages"].get(s) == "complete")
     deal["progress_pct"] = int((completed / len(stage_order)) * 100)
 

@@ -216,6 +216,22 @@ class TestValidator:
         assert report.difference == Decimal("50000")
         assert report.is_balanced is False
 
+    def test_pl_only_export_flag(self):
+        df = load_file(FIXTURE_GL)
+        mapping = infer_column_map(df)
+        lines = normalise(df, mapping, "sample_gl.csv", DEAL_ID)
+        report = validate(lines, DEAL_ID)
+        assert report.is_pl_only_export is True
+
+    def test_full_tb_not_pl_only(self):
+        lines = self._make_lines([
+            ("1001", Decimal("50000")),
+            ("2001", Decimal("-80000")),
+            ("3002", Decimal("-90000")),
+        ])
+        report = validate(lines, DEAL_ID)
+        assert report.is_pl_only_export is False
+
     def test_warns_on_insufficient_periods(self):
         lines = self._make_lines([("4001", Decimal("-10000"))])
         report = validate(lines, DEAL_ID)
@@ -284,3 +300,46 @@ class TestIngestionE2E:
         assert ma_fee is not None
         assert ma_fee.period == date(2024, 6, 1)
         assert ma_fee.amount == Decimal("180000")
+
+
+class TestExcelParity:
+    FIXTURE_XLSX = Path(__file__).parent.parent / "fixtures" / "ABC_Subsidiary.xlsx"
+
+    def test_excel_matches_csv_row_count(self):
+        if not self.FIXTURE_XLSX.exists():
+            pytest.skip("ABC_Subsidiary.xlsx fixture not present")
+        df_csv = load_file(FIXTURE_GL)
+        df_xlsx = load_file(self.FIXTURE_XLSX)
+        assert len(df_csv) == len(df_xlsx)
+
+    def test_excel_normalises_identically_to_csv(self):
+        if not self.FIXTURE_XLSX.exists():
+            pytest.skip("ABC_Subsidiary.xlsx fixture not present")
+        csv_lines = normalise(
+            load_file(FIXTURE_GL), infer_column_map(load_file(FIXTURE_GL)),
+            "sample_gl.csv", DEAL_ID,
+        )
+        xlsx_lines = normalise(
+            load_file(self.FIXTURE_XLSX), infer_column_map(load_file(self.FIXTURE_XLSX)),
+            "ABC_Subsidiary.xlsx", DEAL_ID,
+        )
+        csv_tuples = sorted((line.account_code, line.period, line.amount) for line in csv_lines)
+        xlsx_tuples = sorted((line.account_code, line.period, line.amount) for line in xlsx_lines)
+        assert csv_tuples == xlsx_tuples
+
+
+class TestOrchestratorFailure:
+    def test_unbalanced_full_tb_raises(self, tmp_path, monkeypatch):
+        from app.config import settings
+        from app.pipeline.ingestion import orchestrator as orch
+        from app.pipeline.ingestion.orchestrator import IngestionError
+
+        deal_id = "test-unbalanced-deal"
+        upload_dir = settings.upload_dir / deal_id
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        fixture = Path(__file__).parent.parent / "fixtures" / "unbalanced_trial_balance.csv"
+        dest = upload_dir / "unbalanced_trial_balance.csv"
+        dest.write_bytes(fixture.read_bytes())
+
+        with pytest.raises(IngestionError, match="Trial balance does not balance"):
+            orch.run(deal_id)

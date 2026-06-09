@@ -185,4 +185,8 @@ class ValidationReport(BaseModel):
         default_factory=list,
         description="Periods (YYYY-MM) where debits != credits beyond tolerance",
     )
+    is_pl_only_export: bool = Field(
+        default=False,
+        description="True when upload contains no balance sheet accounts (1xx/2xx/3xx); imbalance may be expected",
+    )
     warnings: list[str] = Field(default_factory=list)
