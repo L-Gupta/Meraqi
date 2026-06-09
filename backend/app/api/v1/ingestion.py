@@ -11,6 +11,8 @@ GET    /api/v1/deals/{deal_id}/status   Poll processing status (lightweight)
 Route handlers contain NO business logic — they delegate to storage and pipeline.
 """
 
+import logging
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 
 from app import pipeline_orchestrator
@@ -23,6 +25,8 @@ from app.schemas.ingestion import (
     UploadResponse,
 )
 from app.storage import deal_store, file_store
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/deals", tags=["Ingestion"])
 
@@ -51,6 +55,10 @@ def create_deal(body: CreateDealRequest) -> DealResponse:
         company_name=body.company_name,
         deal_name=body.deal_name,
         currency=body.currency,
+    )
+    logger.info(
+        "AUDIT deal_created deal_id=%s company=%r deal_name=%r currency=%s",
+        deal["deal_id"], body.company_name, body.deal_name, body.currency,
     )
     return _to_deal_response(deal)
 
@@ -89,6 +97,10 @@ async def upload_files(deal_id: str, files: list[UploadFile]) -> UploadResponse:
         suffix = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
         if suffix not in ALLOWED_EXTENSIONS:
+            logger.warning(
+                "AUDIT upload_rejected deal_id=%s filename=%r reason=disallowed_extension ext=%r",
+                deal_id, filename, suffix,
+            )
             raise HTTPException(
                 status_code=422,
                 detail=f"File type '{suffix}' not allowed. Accepted: {sorted(ALLOWED_EXTENSIONS)}",
@@ -97,6 +109,10 @@ async def upload_files(deal_id: str, files: list[UploadFile]) -> UploadResponse:
         content = await upload.read()
         size_mb = len(content) / (1024 * 1024)
         if size_mb > MAX_FILE_SIZE_MB:
+            logger.warning(
+                "AUDIT upload_rejected deal_id=%s filename=%r reason=too_large size_mb=%.1f",
+                deal_id, filename, size_mb,
+            )
             raise HTTPException(
                 status_code=413,
                 detail=f"File '{filename}' exceeds {MAX_FILE_SIZE_MB} MB limit ({size_mb:.1f} MB)",
@@ -110,6 +126,10 @@ async def upload_files(deal_id: str, files: list[UploadFile]) -> UploadResponse:
             size_bytes=size_bytes,
         )
         saved.append(UploadedFileInfo(**record["uploaded_files"][-1]))
+        logger.info(
+            "AUDIT file_uploaded deal_id=%s filename=%r size_bytes=%d",
+            deal_id, filename, size_bytes,
+        )
 
     return UploadResponse(deal_id=deal_id, files_received=len(saved), files=saved)
 
@@ -147,6 +167,10 @@ def process_deal(
         deal["stages"][stage] = "pending"
     deal_store.update_deal(deal_id, {"stages": deal["stages"], "error": None, "progress_pct": 0})
 
+    logger.info(
+        "AUDIT pipeline_triggered deal_id=%s stages=%s file_count=%d",
+        deal_id, stages, len(deal.get("uploaded_files", [])),
+    )
     background_tasks.add_task(pipeline_orchestrator.run, deal_id=deal_id, stages=stages)
 
     return ProcessResponse(

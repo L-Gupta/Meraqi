@@ -10,18 +10,15 @@ Key assertions mirror what a Big 4 reviewer would check:
 """
 
 import asyncio
-import json
 from decimal import Decimal
 from pathlib import Path
 
-import pytest
-
 from app.agents.coa_mapper import CoAMapperAgent, _mock_classify
-from app.pipeline.financial_builder.orchestrator import _apply_classifications, run
 from app.pipeline.financial_builder import pnl as pnl_builder
+from app.pipeline.financial_builder.orchestrator import _apply_classifications
 from app.pipeline.ingestion.loader import infer_column_map, load_file
 from app.pipeline.ingestion.normalizer import normalise
-from app.schemas.gl import ChartOfAccountsCategory as CAT, RawGLLine
+from app.schemas.gl import ChartOfAccountsCategory as CAT
 
 FIXTURE_GL = Path(__file__).parent.parent / "fixtures" / "sample_gl.csv"
 DEAL_ID = "test-step3-001"
@@ -89,7 +86,7 @@ def _load_mapped_lines():
     col_map = infer_column_map(df)
     raw_lines = normalise(df, col_map, "sample_gl.csv", DEAL_ID)
 
-    unique_pairs = list({(l.account_code, l.account_description) for l in raw_lines})
+    unique_pairs = list({(gl.account_code, gl.account_description) for gl in raw_lines})
     agent = CoAMapperAgent()
     cls_map = asyncio.run(agent.map_accounts(unique_pairs))
     return _apply_classifications(raw_lines, cls_map)
@@ -124,7 +121,6 @@ class TestPnLBuilder:
 
     def test_anomaly_accounts_are_in_pnl_rows(self):
         """All 4 planted anomaly account codes must appear in P&L rows."""
-        account_codes = {r.label for r in self.pnl.rows}
         # Check by description (label field) since that's what's in PnLRow
         descriptions = {r.label for r in self.pnl.rows}
         anomaly_descs = [
@@ -168,12 +164,12 @@ class TestMappedGLCoverage:
         self.mapped = _load_mapped_lines()
 
     def test_no_unmapped_lines(self):
-        memo_lines = [l for l in self.mapped if l.standard_category == CAT.MEMO]
+        memo_lines = [gl for gl in self.mapped if gl.standard_category == CAT.MEMO]
         assert len(memo_lines) == 0, \
-            f"{len(memo_lines)} lines fell through to MEMO: {[l.account_code for l in memo_lines[:5]]}"
+            f"{len(memo_lines)} lines fell through to MEMO: {[gl.account_code for gl in memo_lines[:5]]}"
 
     def test_ebitda_flag_set_correctly(self):
-        ebitda_cats_in_data = {l.standard_category for l in self.mapped if l.is_ebitda_component}
+        ebitda_cats_in_data = {gl.standard_category for gl in self.mapped if gl.is_ebitda_component}
         # Revenue and at least one expense category must be flagged
         assert CAT.REVENUE in ebitda_cats_in_data
         assert CAT.MANAGEMENT_COMPENSATION in ebitda_cats_in_data

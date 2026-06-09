@@ -5,8 +5,6 @@ Tests use the pre-generated sample_gl.csv fixture and synthetic in-memory DataFr
 No database, no network, no LLM calls.
 """
 
-import io
-import tempfile
 from decimal import Decimal
 from pathlib import Path
 
@@ -14,7 +12,7 @@ import pandas as pd
 import pytest
 
 from app.pipeline.ingestion.loader import LoaderError, infer_column_map, load_file
-from app.pipeline.ingestion.normalizer import NormalizerError, normalise
+from app.pipeline.ingestion.normalizer import normalise
 from app.pipeline.ingestion.validator import validate
 
 FIXTURE_GL = Path(__file__).parent.parent / "fixtures" / "sample_gl.csv"
@@ -104,8 +102,8 @@ class TestNormalizer:
         ])
         lines = normalise(df, self._std_map(), "test.csv", DEAL_ID)
         assert len(lines) == 2
-        revenue = next(l for l in lines if l.account_code == "4001")
-        cogs = next(l for l in lines if l.account_code == "5001")
+        revenue = next(gl for gl in lines if gl.account_code == "4001")
+        cogs = next(gl for gl in lines if gl.account_code == "5001")
         assert revenue.amount == Decimal("-100000")   # credit → negative
         assert cogs.amount == Decimal("80000")         # debit → positive
 
@@ -173,6 +171,7 @@ class TestValidator:
     def _make_lines(self, entries: list[tuple]) -> list:
         """entries: list of (account_code, amount_decimal) tuples."""
         from datetime import date
+
         from app.schemas.gl import RawGLLine
         return [
             RawGLLine(
@@ -229,6 +228,7 @@ class TestValidator:
 
     def test_36_periods_no_period_warning(self):
         from datetime import date
+
         from app.schemas.gl import RawGLLine
         lines = []
         for i in range(36):
@@ -266,21 +266,21 @@ class TestIngestionE2E:
         assert report.periods_checked == 36
 
         # All planted anomalies are present in the normalised lines
-        anomaly_lines = [l for l in lines if l.note and l.note.startswith("ONE_TIME")]
+        anomaly_lines = [gl for gl in lines if gl.note and gl.note.startswith("ONE_TIME")]
         assert len(anomaly_lines) == 2, f"Expected 2 one-time anomalies, got {len(anomaly_lines)}"
 
-        related_party = [l for l in lines if l.note and "RELATED_PARTY" in l.note]
+        related_party = [gl for gl in lines if gl.note and "RELATED_PARTY" in gl.note]
         assert len(related_party) == 36, f"Expected 36 related-party rows, got {len(related_party)}"
 
         # Legal settlement is in February 2023
         from datetime import date
-        settlement = next((l for l in anomaly_lines if l.account_code == "6099"), None)
+        settlement = next((gl for gl in anomaly_lines if gl.account_code == "6099"), None)
         assert settlement is not None
         assert settlement.period == date(2023, 2, 1)
         assert settlement.amount == Decimal("285000")
 
         # M&A fees in June 2024 (month_idx 29: 2022 + 29//12=2024, mo=29%12+1=6)
-        ma_fee = next((l for l in anomaly_lines if l.account_code == "6098"), None)
+        ma_fee = next((gl for gl in anomaly_lines if gl.account_code == "6098"), None)
         assert ma_fee is not None
         assert ma_fee.period == date(2024, 6, 1)
         assert ma_fee.amount == Decimal("180000")

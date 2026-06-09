@@ -10,7 +10,7 @@ import json
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,7 @@ def _deal_path(deal_id: str) -> Path:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _atomic_write(path: Path, data: dict) -> None:

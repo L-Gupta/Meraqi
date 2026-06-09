@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # config.py lives at backend/app/config.py
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
     log_level: str = "INFO"
+    log_json: bool = False  # set to true in production / cloud environments
 
 
 settings = Settings()

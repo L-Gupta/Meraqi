@@ -10,13 +10,13 @@ the exact row in the client's original file — the audit trail requirement.
 
 from datetime import date
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 
-class ChartOfAccountsCategory(str, Enum):
+class ChartOfAccountsCategory(StrEnum):
     # Revenue
     REVENUE = "Revenue"
     OTHER_INCOME = "Other Income"

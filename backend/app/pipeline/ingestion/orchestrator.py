@@ -14,7 +14,7 @@ from app.pipeline.ingestion.loader import LoaderError, infer_column_map, load_fi
 from app.pipeline.ingestion.normalizer import NormalizerError, normalise
 from app.pipeline.ingestion.validator import validate
 from app.schemas.gl import RawGLLine, ValidationReport
-from app.storage import deal_store, file_store
+from app.storage import file_store
 
 logger = logging.getLogger(__name__)
 

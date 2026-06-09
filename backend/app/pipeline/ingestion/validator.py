@@ -102,8 +102,8 @@ def validate(lines: list[RawGLLine], deal_id: str) -> ValidationReport:
 
     # ── 3. Revenue account heuristic ─────────────────────────────────────────
     revenue_like = [
-        l for l in lines
-        if l.account_code and l.account_code.startswith("4") and l.amount < 0
+        gl for gl in lines
+        if gl.account_code and gl.account_code.startswith("4") and gl.amount < 0
     ]
     if not revenue_like:
         warnings.append(
