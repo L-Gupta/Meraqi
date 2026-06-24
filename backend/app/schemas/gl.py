@@ -189,4 +189,12 @@ class ValidationReport(BaseModel):
         default=False,
         description="True when upload contains no balance sheet accounts (1xx/2xx/3xx); imbalance may be expected",
     )
+    is_mixed_export: bool = Field(
+        default=False,
+        description=(
+            "True when upload contains both P&L activity and balance sheet snapshot rows. "
+            "Global trial balance will not sum to zero (expected), so the imbalance check "
+            "is relaxed. BS quality is verified per-period by the balance sheet builder."
+        ),
+    )
     warnings: list[str] = Field(default_factory=list)

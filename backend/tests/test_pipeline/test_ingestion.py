@@ -24,7 +24,7 @@ DEAL_ID = "test-deal-001"
 class TestLoader:
     def test_loads_fixture_csv(self):
         df = load_file(FIXTURE_GL)
-        assert len(df) == 902
+        assert len(df) == 1514
         assert "account_code" in df.columns
         assert "debit" in df.columns
         assert "credit" in df.columns
@@ -91,7 +91,7 @@ class TestNormalizer:
         df = load_file(FIXTURE_GL)
         mapping = infer_column_map(df)
         lines = normalise(df, mapping, "sample_gl.csv", DEAL_ID)
-        assert len(lines) == 902
+        assert len(lines) == 1514
 
     def test_debit_credit_to_signed_amount(self):
         df = self._make_df([
@@ -221,7 +221,9 @@ class TestValidator:
         mapping = infer_column_map(df)
         lines = normalise(df, mapping, "sample_gl.csv", DEAL_ID)
         report = validate(lines, DEAL_ID)
-        assert report.is_pl_only_export is True
+        # Fixture now includes BalanceSheet rows so it is a mixed export, not P&L-only
+        assert report.is_pl_only_export is False
+        assert report.is_mixed_export is True
 
     def test_full_tb_not_pl_only(self):
         lines = self._make_lines([
@@ -275,8 +277,8 @@ class TestIngestionE2E:
         lines = normalise(df, mapping, "sample_gl.csv", DEAL_ID)
         report = validate(lines, DEAL_ID)
 
-        # 902 rows in fixture
-        assert len(lines) == 902
+        # 1514 rows: 902 P&L + 612 BalanceSheet (17 accounts × 36 periods)
+        assert len(lines) == 1514
 
         # 36 months of data
         assert report.periods_checked == 36

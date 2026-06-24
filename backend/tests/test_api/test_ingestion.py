@@ -52,7 +52,7 @@ class TestIngestionAPI:
 
         gl = client.get(f"/api/v1/deals/{deal_id}/gl/lines?page_size=5")
         assert gl.status_code == 200
-        assert gl.json()["total"] == 902
+        assert gl.json()["total"] == 1514
 
         validation = client.get(f"/api/v1/deals/{deal_id}/gl/validation")
         assert validation.status_code == 200

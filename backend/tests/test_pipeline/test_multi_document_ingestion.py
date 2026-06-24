@@ -71,7 +71,7 @@ class TestMultiDocumentOrchestrator:
             "sample_projections.csv",
         ])
         result = orch.run(deal_id)
-        assert len(result.gl_lines) == 902
+        assert len(result.gl_lines) == 1514
         assert result.ar_aging is not None
         assert result.ap_aging is not None
         assert result.projections is not None
@@ -82,7 +82,7 @@ class TestMultiDocumentOrchestrator:
         deal_id = "multi-doc-gl-only"
         _setup_deal_uploads(deal_id, ["sample_gl.csv"])
         result = orch.run(deal_id)
-        assert len(result.gl_lines) == 902
+        assert len(result.gl_lines) == 1514
         assert result.ar_aging is None
         assert any("ar_aging" in w for w in result.warnings)
 

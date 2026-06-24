@@ -14,6 +14,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from app.agents.coa_mapper import CoAMapperAgent, _mock_classify
+from app.pipeline.financial_builder import balance_sheet as bs_builder
+from app.pipeline.financial_builder import cash_flow as cf_builder
 from app.pipeline.financial_builder import pnl as pnl_builder
 from app.pipeline.financial_builder.orchestrator import _apply_classifications
 from app.pipeline.ingestion.loader import infer_column_map, load_file
@@ -178,3 +180,77 @@ class TestMappedGLCoverage:
         for line in self.mapped:
             assert line.financial_statement in ("PnL", "BalanceSheet", "Memo"), \
                 f"Invalid financial_statement: {line.financial_statement}"
+
+    def test_fixture_has_both_pnl_and_bs_lines(self):
+        pnl_lines = [gl for gl in self.mapped if gl.financial_statement == "PnL"]
+        bs_lines = [gl for gl in self.mapped if gl.financial_statement == "BalanceSheet"]
+        assert len(pnl_lines) > 0, "Expected P&L lines in mapped GL"
+        assert len(bs_lines) > 0, "Expected BalanceSheet lines — fixture must include BS accounts"
+
+
+# ─── Balance Sheet Builder tests ───────────────────────────────────────────────
+
+class TestBalanceSheetBuilder:
+    def setup_method(self):
+        self.mapped = _load_mapped_lines()
+        self.pnl = pnl_builder.build(self.mapped)
+        self.bs = bs_builder.build(self.mapped)
+
+    def test_36_periods(self):
+        assert len(self.bs.periods) == 36
+
+    def test_balance_sheet_balances_every_period(self):
+        """Assets must equal Liabilities + Equity in every period (Big 4 sign-off gate)."""
+        for pk, balanced in self.bs.is_balanced.items():
+            assert balanced, (
+                f"Balance sheet does not balance in {pk}: "
+                f"assets={self.bs.total_assets[pk]} "
+                f"liab+eq={self.bs.total_liabilities[pk] + self.bs.total_equity[pk]}"
+            )
+
+    def test_total_assets_positive(self):
+        for pk, assets in self.bs.total_assets.items():
+            assert assets > 0, f"Total assets non-positive in {pk}"
+
+    def test_total_liabilities_positive(self):
+        for pk, liab in self.bs.total_liabilities.items():
+            assert liab > 0, f"Total liabilities non-positive in {pk}"
+
+    def test_assets_equal_liabilities_plus_equity(self):
+        """Verify the arithmetic directly (belt-and-suspenders over is_balanced)."""
+        tolerance = Decimal("0.10")
+        for pk in self.bs.total_assets:
+            diff = abs(self.bs.total_assets[pk] - (self.bs.total_liabilities[pk] + self.bs.total_equity[pk]))
+            assert diff <= tolerance, f"A = L + E gap ${diff:.2f} in {pk}"
+
+    def test_rows_categorised(self):
+        sections = {r.section for r in self.bs.rows}
+        assert "Current Assets" in sections
+        assert "Current Liabilities" in sections
+
+
+# ─── Cash Flow Builder tests ────────────────────────────────────────────────────
+
+class TestCashFlowBuilder:
+    def setup_method(self):
+        mapped = _load_mapped_lines()
+        pnl = pnl_builder.build(mapped)
+        bs = bs_builder.build(mapped)
+        self.cf = cf_builder.build(mapped, pnl, bs)
+
+    def test_36_periods(self):
+        assert len(self.cf.periods) == 36
+
+    def test_operating_cash_flow_keys_present(self):
+        for period in self.cf.periods:
+            pk = period.strftime("%Y-%m")
+            assert pk in self.cf.operating_cash_flow, f"OCF missing for {pk}"
+
+    def test_cf_rows_have_valid_sections(self):
+        for row in self.cf.rows:
+            assert row.section in ("Operating", "Investing", "Financing"), \
+                f"Invalid CF section: {row.section}"
+
+    def test_operating_section_non_empty(self):
+        operating_rows = [r for r in self.cf.rows if r.section == "Operating"]
+        assert len(operating_rows) > 0, "Expected at least one Operating CF row"

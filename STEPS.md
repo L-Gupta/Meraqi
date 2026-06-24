@@ -43,15 +43,22 @@ Files: `pipeline/ingestion/loader.py`, `normalizer.py`, `validator.py`, `documen
 ---
 
 ## STEP 3 — Chart of Accounts Mapper + Financial Statement Builder
-**Status: PENDING**
+**Status: COMPLETE**
 
-Partial work complete: CoA mapper agent, financial builder (P&L, BS, CF), and `GET /financials/*` API endpoints exist.
+CoA mapper agent, P&L / Balance Sheet / Cash Flow builders, and `GET /financials/*` API endpoints fully implemented and tested.
 
 ### Test Checklist
-- [ ] `GET /api/v1/deals/{id}/financials/pnl?period=annual` returns structured P&L
-- [ ] Revenue + COGS = Gross Profit (exactly, to the cent)
-- [ ] Balance Sheet balances: Assets == Liabilities + Equity
-- [ ] Mock mode works without Anthropic API key
+- [x] `GET /api/v1/deals/{id}/financials/pnl?period=annual` returns 3 annual periods (2022–2024)
+- [x] Revenue + COGS = Gross Profit (exactly, to the cent) — asserted in `TestPnLBuilder`
+- [x] Balance Sheet balances: Assets == Liabilities + Equity in every period — asserted in `TestBalanceSheetBuilder` and `TestBalanceSheetEndpoint`
+- [x] Mock mode works without Anthropic API key — all 125 tests pass with `USE_MOCK_LLM=true`
+
+### Architecture notes
+- `backend/tests/fixtures/generate_fixtures.py` extended to emit 612 monthly BalanceSheet rows (17 accounts × 36 periods) alongside the existing 902 P&L rows; totals 1,514 rows
+- Synthetic BS rows are balanced per-period via a Retained Earnings plug (Assets = Liabilities + Equity within $0.05)
+- Validator extended with `is_mixed_export` flag: mixed P&L-activity + BS-snapshot uploads pass the ingestion check (BS quality enforced per-period by the builder)
+- Root `tests/` folder relocated to `backend/tests/fixtures/financial_statements/{proper,anomaly,anomaly_deep}` and removed from `.gitignore`
+- `GET /financials/pnl?period=annual` rolls up 36 monthly rows into 3 annual periods; summary dicts keyed by "YYYY"
 
 ---
 
@@ -123,3 +130,6 @@ Partial work complete:
 | 2026-05-28 | FastAPI BackgroundTasks for processing | Sufficient for <50K row files; will replace with Celery+Redis for cloud |
 | 2026-06-08 | Multi-document ingestion in single `ingestion` stage | Classify and route GL, aging, projections, PDFs; optional docs non-blocking |
 | 2026-06-08 | `.xls` removed until xlrd dependency needed | Avoid broken loader path; `.xlsx` and CSV cover POC |
+| 2026-06-24 | Synthetic BS rows in generator (not schedule conversion) | Faster, self-contained; schedule files deferred to Steps 4–8 validation work |
+| 2026-06-24 | `is_mixed_export` validator flag instead of raising on global TB imbalance | P&L + BS snapshot file won't sum to zero globally; BS quality enforced per-period by builder |
+| 2026-06-24 | Annual P&L rollup in API layer (not stored) | Keep storage simple (monthly JSON); rollup is cheap at query time |
