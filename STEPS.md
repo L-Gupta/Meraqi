@@ -63,15 +63,20 @@ CoA mapper agent, P&L / Balance Sheet / Cash Flow builders, and `GET /financials
 ---
 
 ## STEP 4 — QoE Engine + Red Flag Detector
-**Status: PENDING**
+**Status: COMPLETE**
 
-Partial work complete: QoE rules engine, waterfall, red flag detector, LLM reviewer/enrichment agents, and API endpoints exist.
+QoE rules engine, waterfall, red flag detector, LLM reviewer/enrichment agents, and API endpoints fully implemented and tested.
 
 ### Test Checklist
-- [ ] Planted legal settlement in fixture GL detected as one-time item
-- [ ] Owner comp excess detected across all 36 months
-- [ ] `GET /api/v1/deals/{id}/qoe` waterfall array sums correctly
-- [ ] `GET /api/v1/deals/{id}/redflags` returns ≥3 flags with correct severity
+- [x] Planted legal settlement in fixture GL detected as one-time item — asserted in `TestQoERules` and `TestQoEOrchestrator`
+- [x] Owner comp excess detected across all 36 months — asserted in `TestQoERules.test_owner_comp_excess_detected_all_36_periods`
+- [x] `GET /api/v1/deals/{id}/qoe` waterfall array sums correctly — asserted in `TestQoEEndpoint.test_qoe_waterfall_base_plus_bars_equals_result`
+- [x] `GET /api/v1/deals/{id}/redflags` returns ≥3 flags with correct severity — asserted in `TestRedFlagEndpoint`
+
+### Architecture notes
+- All pipeline logic was pre-existing; Step 4 sign-off added orchestrator integration tests (`TestQoEOrchestrator`) and API-level HTTP tests (`test_api/test_qoe_redflags.py`, 23 tests)
+- `TestRedFlagRulesWithBSCF` verifies that `detect_all()` accepts and handles `balance_sheet` / `cash_flow` arguments without error; BS/CF-dependent rules don't breach thresholds in the synthetic fixture (AR days ~10d, DR growing, cash conversion healthy)
+- Mock LLM agents inject diligence questions on all High/Medium flags — verified end-to-end in `test_high_medium_flags_have_diligence_questions`
 
 ---
 
@@ -133,3 +138,4 @@ Partial work complete:
 | 2026-06-24 | Synthetic BS rows in generator (not schedule conversion) | Faster, self-contained; schedule files deferred to Steps 4–8 validation work |
 | 2026-06-24 | `is_mixed_export` validator flag instead of raising on global TB imbalance | P&L + BS snapshot file won't sum to zero globally; BS quality enforced per-period by builder |
 | 2026-06-24 | Annual P&L rollup in API layer (not stored) | Keep storage simple (monthly JSON); rollup is cheap at query time |
+| 2026-06-24 | BS/CF red-flag rules non-blocking (optional args) | Gracefully degrades to P&L-only flags when BS/CF unavailable; rules don't breach thresholds in synthetic fixture but are exercised in tests |
