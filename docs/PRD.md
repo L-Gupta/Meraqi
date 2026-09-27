@@ -9,6 +9,12 @@
 > disagrees with comments or naming still in the codebase (e.g. "Junior Analyst
 > Report"), this document is correct and the code should eventually be
 > relabeled to match.
+>
+> Refreshed 2026-09-27 against `main` as of PR #29: narrative frontend
+> wiring/PDF export marked complete, statement-builder path and databook tab
+> list corrected, test-tier wording aligned with RULES.md §5.1, and the
+> nonexistent nightly e2e run removed. The analyst-override conflict (§3.1,
+> Flow 2) is deliberately **not** resolved here — see the notes in place.
 
 ## 1. Product Summary
 
@@ -80,16 +86,16 @@ Concretely, that bar breaks into:
 | Feature | Status |
 |---|---|
 | Multi-document data room ingestion (GL CSV/XLSX, ZIP data rooms, AR/AP aging, projections, PDF debt agreements) with classification and routing | **Built** — `pipeline/ingestion/*`, `document_registry.py` |
-| Deterministic financial statement construction (P&L, Balance Sheet, Cash Flow) — Python/Decimal only, cent-precision, traceable to source GL lines | **Built** — `pipeline/financial_statements/*`, `GET /financials/{pnl,balance-sheet,cash-flow}` |
+| Deterministic financial statement construction (P&L, Balance Sheet, Cash Flow) — Python/Decimal only, cent-precision, traceable to source GL lines | **Built** — `pipeline/financial_builder/*`, `GET /financials/{pnl,balance-sheet,cash-flow}` |
 | Chart-of-accounts mapping (LLM-assisted, never LLM-computed) | **Built** — CoA mapper agent, mock + real modes |
 | QoE adjustment waterfall with full source-GL audit trail per adjustment | **Built** — `pipeline/qoe_engine/*`, `GET /qoe`, `GET /qoe/adjustments/{id}/source` |
-| Analyst review/override of QoE adjustments (accept/reject/modify an LLM- or rule-proposed adjustment, with reason + who + when recorded) | **In progress** — schema/orchestrator changes on current branch (`feat/qoe-adjustment-override`), not yet merged. This is the human-in-the-loop control that keeps "no hallucinated numbers" true when an LLM-proposed adjustment is wrong. |
+| Analyst review/override of QoE adjustments (accept/reject/modify an LLM- or rule-proposed adjustment, with reason + who + when recorded) | **In progress** — schema/orchestrator changes on current branch (`feat/qoe-adjustment-override`), not yet merged. This is the human-in-the-loop control that keeps "no hallucinated numbers" true when an LLM-proposed adjustment is wrong. **⚠️ Unresolved conflict:** this row conflicts with the "engine numbers are finalized" rule (RULES.md §0.2/§4/§7.3). Resolving it and updating this row is tracked as [PHASES.md](PHASES.md) Phase 2, Task 4 — not decided here. |
 | Red flag detection: threshold-rule-based (owner comp %, related-party %, AR days, EBITDA volatility/margin decline, NWC volatility, cash conversion, deferred revenue decline, revenue seasonality) | **Built** — `pipeline/redflag_detector/rules.py` |
 | Cross-document consistency red flags (GL vs AR/AP aging tie-out failures, GL-derived net debt vs contract-extracted debt terms mismatch) | **Built** — `_rule_cross_doc_tie_out_failures`, `_rule_net_debt_reconciliation_mismatch`, `GET /tie-outs` |
 | **Line-item / unit-economics outlier detection** (a single GL line or unit price implausible relative to the rest of the data set — the "water costing $1M" case) | **Not built.** Current rules are all pre-defined ratio/threshold checks against known categories (owner comp, AR days, etc.); there is no general statistical-outlier or plausibility-check rule that flags an arbitrary line item as "this number looks wrong on its face" independent of a named category. This is a real MVP gap per the product owner's bar, not just a "later" nicety. |
 | Red flag severity + diligence questions (LLM-enriched, grounded in the underlying data — never inventing a number) | **Built** — mock + real LLM reviewer agents inject diligence questions on High/Medium flags |
-| IAR generation: adjusted financials, QoE highlights, red flags, NWC, net debt/DCF cross-check, narrative sections, with graphs (revenue/EBITDA trend, QoE waterfall, red flag breakdown) | **Partially built, needs reframing.** `NarrativeDrafterAgent` + `pipeline/narrative/orchestrator.py` draft 5 sections (executive summary, key risks, QoE highlights, working capital, recommendations) from a fact sheet of already-computed figures — this is the right architecture (LLM never sees raw GL, every quoted figure traces to `figures_used`). But it's currently framed/labeled in the frontend as a **"Junior Analyst Report"** (`junior-analyst-report.tsx`) — an internal working summary, not the IAR deliverable itself. Per the product owner: **TAM is not building a junior-analyst summary; it is building the IAR.** This needs a product/naming pass: confirm IAR section structure against a real IAR template, and treat the current 5 narrative sections as a starting point, not the finished spec. Frontend wiring of the live narrative (replacing `PLACEHOLDER_SECTIONS`, PDF export) is also still pending per the last `STEPS.md` entry. |
-| Databook export (Excel) — QoE waterfall, adjustments, GL mapping, aging, tie-outs, IRL tabs | **Built** — `pipeline/databook/generator.py`, `POST /databook/export` |
+| IAR generation: adjusted financials, QoE highlights, red flags, NWC, net debt/DCF cross-check, narrative sections, with graphs (revenue/EBITDA trend, QoE waterfall, red flag breakdown) | **Partially built, needs reframing.** `NarrativeDrafterAgent` + `pipeline/narrative/orchestrator.py` draft 5 sections (executive summary, key risks, QoE highlights, working capital, recommendations) from a fact sheet of already-computed figures — this is the right architecture (LLM never sees raw GL, every quoted figure traces to `figures_used`). But it's currently framed/labeled in the frontend as a **"Junior Analyst Report"** (`junior-analyst-report.tsx`) — an internal working summary, not the IAR deliverable itself. Per the product owner: **TAM is not building a junior-analyst summary; it is building the IAR.** This needs a product/naming pass: confirm IAR section structure against a real IAR template, and treat the current 5 narrative sections as a starting point, not the finished spec (PHASES.md Phase 4). **Frontend wiring is complete:** `junior-analyst-report.tsx` fetches the persisted narrative (`GET /narrative`), can regenerate it (`POST /narrative/generate`), and exports a printable PDF (`exportToPrintablePdf`). The earlier `STEPS.md` "pending" note was stale. |
+| Databook export (Excel) — Cover, QoE Waterfall, Adjustment Ledger, GL Mapping, P&L/Balance Sheet/Cash Flow, NWC Trend, NWC Pegs, Net Debt, Debt Instruments, DCF, Commercial Health, Contracts, Narrative, AR/AP Aging, Tie-outs, IRL tabs | **Built** — `pipeline/databook/generator.py`, `POST /databook/export`. NWC, Net Debt, DCF, Commercial Health, Contracts, and Narrative tabs added in PR #28; each is omitted gracefully if its source report doesn't exist. |
 | Audit trail — every QoE adjustment and red flag cites source GL line IDs or source document; document access logged | **Built** — `security/access_log.py`, append-only adjustment ledger |
 | At-rest encryption of all persisted data (deal records, uploads, processed output) | **Built** — `security/file_crypto.py`, AES-256-GCM |
 | Per-user auth, deal ownership enforcement | **Built** — Argon2id + JWT session, `require_deal_owner` |
@@ -144,8 +150,10 @@ Things TAM will deliberately **not** do, regardless of timeline:
   vetted libraries only (`argon2-cffi`, `cryptography`) — see `CLAUDE.md` §4.
 - **No full-pipeline synchronous requests.** The ~40-minute real-LLM
   end-to-end pipeline is never a request-response path in the product; it
-  runs as a background job the user polls, and is only exercised in nightly
-  CI, not on every merge (`CLAUDE.md` §3a/§3).
+  runs as a background job the user polls. Its `e2e` test tier is never a
+  merge gate; today it runs only when invoked manually (`pytest -m e2e`) —
+  no CI workflow, nightly or otherwise, runs it (`CLAUDE.md` §3/§3a,
+  TESTING.md).
 - **Not a general bookkeeping or accounting system.** TAM ingests a data room
   for a point-in-time diligence engagement; it does not replace a client's
   GL system, do ongoing bookkeeping, or manage multi-period close.
@@ -177,6 +185,12 @@ adjustment ledger records who overrode it, when, and why (append-only); the
 QoE waterfall and downstream IAR figures recompute deterministically from
 the now-corrected adjustment set. *(This flow's backend plumbing is in
 progress on `feat/qoe-adjustment-override`.)*
+
+> ⚠️ **This flow conflicts with RULES.md §0.2** ("engine numbers are
+> finalized — no analyst override of the numeric value"). Known to the
+> product owner; resolution and the rewrite of this flow are tracked as
+> [PHASES.md](PHASES.md) Phase 2, Task 4. Don't build against this flow as
+> written until that's decided.
 
 **Flow 3 — Analyst investigates a red flag before the client call**
 The red flag center shows a High-severity flag: "Owner Compensation Elevated
@@ -254,10 +268,12 @@ perspective:
   manually at a Big 4-style TAS practice — not a generic AI summary. (This
   needs a template/rubric check against a real IAR, not just internal review
   — flagged as follow-up work, not yet defined in this PRD.)
-- **No regression in determinism:** CI's mocked-LLM test tier
-  (`pytest -m "unit or integration"`) and the nightly real-LLM `e2e` tier
-  both stay green — a change that makes numbers non-reproducible or
-  LLM-dependent is a regression regardless of how good the feature looks.
+- **No regression in determinism:** CI's `unit` tier (no LLM calls) and its
+  per-phase `integration` tier (real Anthropic API, `USE_MOCK_LLM=false` —
+  never mocked, per RULES.md §5.1 and `CLAUDE.md` §3) stay green, and the
+  real-LLM `e2e` tier passes when run manually before an MVP sign-off — a
+  change that makes numbers non-reproducible or LLM-dependent is a
+  regression regardless of how good the feature looks.
 - **Audit trail intact:** for any number or flag a reviewer questions, the
   UI can answer "where did this come from" in at most one click-through,
   down to source GL line or source document.

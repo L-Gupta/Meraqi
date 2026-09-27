@@ -12,6 +12,11 @@
 > not duplicated. **No global (`~/.claude/CLAUDE.md`) file exists for this
 > user** — this repo's `CLAUDE.md` plus this document are the complete
 > operating instructions.
+>
+> Refreshed 2026-09-27: §0.1's `CLAUDE.md` correction is now committed
+> (same commit that first added this file); e2e wording in §5.1 and the
+> LLM-integration rules in §1/§2 updated to match the code (a second,
+> frontend-side Anthropic integration exists — ARCHITECTURE.md §9.2).
 
 ## 0. Two decisions made while writing this document
 
@@ -55,7 +60,7 @@ in section text.
 | File encryption | `app/security/file_crypto.py` (AES-256-GCM) exclusively | Never a new encryption call site outside this module — see `CLAUDE.md` §4. |
 | Password hashing | `app/security/passwords.py` (Argon2id via `argon2-cffi`) | Same — never a new hashing call site. |
 | Session tokens | `app/security/jwt_tokens.py` (PyJWT, HS256) | Existing pattern; if a future requirement needs revocation, that's a design discussion (see the tradeoff already documented in that module's docstring), not a silent swap. |
-| LLM calls | Subclass `app/agents/base.py::BaseAgent`, Anthropic SDK only | `_build_messages`/`_parse_response`/`_mock_response`, tool-use for structured output. Never call `anthropic` directly from a router or pipeline module — always through an agent subclass, so mock-mode dispatch and retry/backoff stay centralized. |
+| LLM calls | Subclass `app/agents/base.py::BaseAgent`, Anthropic SDK only | `_build_messages`/`_parse_response`/`_mock_response`, tool-use for structured output. Never call `anthropic` directly from a router or pipeline module — always through an agent subclass, so mock-mode dispatch and retry/backoff stay centralized. To pin an agent to a non-default model, set the `model` class attribute (see ARCHITECTURE.md §9.3) rather than branching on model inside `_call()`. **Existing exception, flagged not endorsed:** `frontend/app/api/inquiry/assistant/route.ts` calls the Anthropic Messages API directly from Next.js (ARCHITECTURE.md §9.2). Don't copy that pattern for new LLM features. |
 | Logging | `logging.getLogger(__name__)` per module, structured `extra={...}` for machine-parseable fields, `AUDIT` string-prefixed `logger.info`/`logger.warning` calls for state-changing actions | This is the established pattern (see `ingestion.py`'s `AUDIT deal_created`/`AUDIT file_uploaded`/`AUDIT upload_rejected`/`AUDIT pipeline_triggered` lines, and `qoe.py`'s in-progress `AUDIT qoe_adjustment_overridden`). Any new endpoint that creates, deletes, or overrides something a due-diligence audit trail would care about should log an `AUDIT` line with the same key=value shape. |
 | Testing | `pytest`, markers `unit`/`integration`/`e2e` per `pyproject.toml`, `fastapi.testclient.TestClient`, shared fixtures in `tests/conftest.py` and `tests/auth_helpers.py::authenticate()` | Every new deal-scoped endpoint added to `test_authorization.py`'s `_DEAL_SCOPED_GET_ENDPOINTS` list (or the equivalent POST/PATCH coverage) — that file is the IDOR regression suite; a new endpoint that isn't in it is untested for the one vulnerability class this app is most exposed to. |
 | Lint | Ruff (`E`, `F`, `I`, `UP`; line-length 120) | Already configured in `pyproject.toml`; run before considering any backend task done, per `CLAUDE.md` §5. |
@@ -81,9 +86,11 @@ in section text.
   unilaterally. `app/storage/*_store.py` is deliberately the seam for this
   swap later (see ARCHITECTURE.md §2) — don't jump ahead of it.
 - **No OpenAI SDK, no other LLM provider SDK.** `plan.txt` (an early design
-  doc) mentions OpenAI/`gpt-4o`; the actual, current, and only integration
-  is Anthropic via `app/agents/base.py`. Treat any OpenAI reference
-  elsewhere in the repo's docs as stale, not a second supported provider.
+  doc) mentions OpenAI/`gpt-4o`; the only provider is Anthropic — via
+  `app/agents/base.py` on the backend, plus the one direct-`fetch`
+  exception in the frontend's Inquiry Copilot route (§1). Treat any OpenAI
+  reference elsewhere in the repo's docs as stale, not a second supported
+  provider.
 - **No Celery, no Redis, no message queue.** Long-running work is a FastAPI
   `BackgroundTask`. Don't add queue infrastructure without an explicit
   product-owner request — it's a real future migration (again, named in
@@ -157,7 +164,8 @@ in section text.
   it by catching and translating expected failure modes explicitly.
   **Known inconsistency, not yet resolved:** this handler's response shape
   (`{"error", "detail", "request_id", "endpoint"}`) doesn't match a normal
-  `HTTPException`'s shape (`{"detail"}` only) — see ARCHITECTURE.md §6/§10.
+  `HTTPException`'s shape (`{"detail"}` only) — see DESIGN.md §10.1 and
+  ARCHITECTURE.md §10.
   Don't silently "fix" this by changing one shape to match the other; it's
   a public API contract change and should be raised with the product owner
   first.
@@ -254,7 +262,9 @@ I/O in `data/deals`/`uploads`/`processed`) — read that section too.
    - `integration` — real file I/O **and** a real (never mocked) Anthropic
      API call, scoped to one pipeline phase. `USE_MOCK_LLM=false` always.
    - `e2e` — the full real pipeline over HTTP, real API calls throughout;
-     nightly/on-demand only, never a merge gate (`CLAUDE.md` §3a).
+     on-demand only (`pytest -m e2e`, run manually), never a merge gate
+     (`CLAUDE.md` §3a). No CI workflow runs it today — whether to add a
+     scheduled one is an open decision (PHASES.md Parking Lot).
    - Local/interactive dev defaults to mock (`use_mock_llm: bool = True` in
      `config.py`) purely so the pipeline is runnable without a key — but
      per the product owner's standing instruction, any AI-driven test run

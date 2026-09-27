@@ -1,13 +1,20 @@
-# DESIGN.md — TAM Frontend Design System (As Implemented)
+# DESIGN.md — TAM Design System and API/UX Contracts (As Implemented)
 
 > Status: drafted 2026-08-10 by Claude Code, extracted directly from
 > `tailwind.config.ts`, `app/globals.css`, `lib/store/use-theme-store.ts`,
 > every file under `components/ui/`, and a representative sample of real
-> components/pages. **This documents what exists, not a recommendation.**
-> Every value below is copied verbatim from the source file it came from —
-> nothing here is approximated or invented. Where the codebase itself is
-> inconsistent, that's flagged explicitly in §9 rather than silently
-> resolved to one answer.
+> components/pages. Refreshed 2026-09-27: §10 (API and UX contracts) moved
+> here from ARCHITECTURE.md §6. **This documents what exists, not a
+> recommendation.** Every value below is copied verbatim from the source
+> file it came from — nothing here is approximated or invented. Where the
+> codebase itself is inconsistent, that's flagged explicitly in §9 rather
+> than silently resolved to one answer.
+>
+> **Ownership split:** this file owns the visual design system (§1–§9) and
+> the API/UX contracts between frontend and backend (§10).
+> [ARCHITECTURE.md](ARCHITECTURE.md) owns system structure and
+> infrastructure; [API.md](API.md) is the per-endpoint reference that §10's
+> conventions apply to.
 
 ## 1. Color Palette
 
@@ -290,16 +297,13 @@ trigger), `Sparkles`/`Bot` (AI-related UI, e.g. `tam-llm-sidebar.tsx`).
 
 ## 7. State Management (relevant to design consistency)
 
-Not a color/spacing concern directly, but relevant to "how to extend this
-consistently": UI-only presentational state (theme, dialog open/closed,
-active tab) is local `useState` or the two dedicated Zustand stores
-(`use-global-store.ts` for deal/period/basis selection,
-`use-theme-store.ts` for theme) — never server data. See ARCHITECTURE.md §2
-and RULES.md §1 for the full rule; mentioned here because a new styled
-component that needs to remember something across a session (e.g. a
-collapsed/expanded preference) should follow the existing Zustand-with-`persist`
-pattern (`{ name: "tam-<thing>-state" }` in `localStorage`), not invent a
-new persistence mechanism.
+The store split itself (Query for server state, Zustand for UI state) is
+documented in ARCHITECTURE.md §2 and RULES.md §1 — not repeated here. The
+design-relevant rule: a new styled component that needs to remember a
+presentational preference across a session (e.g. collapsed/expanded)
+should follow the existing Zustand-with-`persist` pattern
+(`{ name: "tam-<thing>-state" }` in `localStorage`), not invent a new
+persistence mechanism.
 
 ## 8. How to Extend This Consistently
 
@@ -403,3 +407,107 @@ decide whether/how to reconcile them.
    exist. Grouped separately from finding 1 because it's a single token
    pair rather than a full semantic-color trio, but the same question
    applies: dead code to remove, or an intended system never adopted.
+
+## 10. API and UX Contracts
+
+Moved here from ARCHITECTURE.md §6 on 2026-09-27. These are the
+conventions every endpoint in [API.md](API.md) follows, and the
+user-facing behavior the frontend commits to on top of them.
+
+### 10.1 API conventions
+
+- **Base path:** `/api/v1`, one `APIRouter` per domain (17), all mounted in
+  `app/api/v1/router.py`. `GET /health` (unauthenticated) sits outside the
+  prefix. OpenAPI docs at `/docs` and `/redoc`.
+- **Resource shape:** deal-scoped resources nest under
+  `/deals/{deal_id}/...` (e.g. `/deals/{id}/qoe`,
+  `/deals/{id}/qoe/adjustments/{adj_id}/source`). Every such route depends
+  on `require_deal_owner`, which returns `404` both when the deal doesn't
+  exist and when it exists but isn't owned by the caller — never `403`, so
+  a valid-but-foreign `deal_id` isn't confirmed via status code
+  ([SECURITY.md](SECURITY.md) §5).
+- **Auth flow:** `POST /auth/signup` / `POST /auth/login` set an httpOnly,
+  `SameSite=Lax` session cookie (`tam_session`, a JWT; `secure` flag off
+  only when the first configured CORS origin is localhost — see
+  `_is_local_dev()` in `auth.py`). Every subsequent request relies on the
+  browser sending that cookie (`credentials: "include"` in
+  `fdd-client.ts`); FastAPI decodes it via `get_current_user` on every
+  protected route. `GET /auth/me` returns the current user.
+  `POST /auth/logout` clears the cookie. **Password reset is email-based:**
+  `POST /auth/forgot-password` always returns the same generic `message`
+  (registered or not — no account enumeration) and emails the reset link
+  via `services/email.py` (SMTP if configured, else the local dev outbox);
+  the token is never in the API response (PR #22). `POST
+  /auth/reset-password` consumes the token.
+- **Long-running work:** `POST /deals/{id}/process` triggers
+  `pipeline_orchestrator.run()` as a `BackgroundTask` and returns
+  immediately; clients poll `GET /deals/{id}/status`. There is no
+  job/task ID — status is deal-scoped, not per-invocation. Two other
+  LLM-backed operations are **synchronous** (the request blocks until the
+  model responds): `POST /deals/{id}/contracts/analyze` and `POST
+  /deals/{id}/narrative/generate`.
+- **Response bodies:** Pydantic `response_model`s on almost every route
+  (exceptions returning plain dicts: `/financials/summary`, `/gl/lines`,
+  `/gl/periods`, `/qoe/adjustments/{id}/source`, `/supporting-schedules`,
+  `/auth/logout`, `/auth/reset-password`).
+- **Serialization:** all monetary amounts are `Decimal`, serialized as JSON
+  **strings**, never JSON numbers. The frontend converts to `number` only at
+  display time (comment at the top of `fdd-client.ts`). Ratios/percentages
+  are floats. Dates are ISO 8601. Per-period maps are keyed `"YYYY-MM"`,
+  except `/financials/pnl?period=annual`, which keys by `"YYYY"`.
+  **Known quirk:** `/financials/pnl` and `/financials/cash-flow` return a
+  `periods` array in `YYYY-MM-DD` form while keying per-period records
+  `YYYY-MM` — the frontend's `lookupByPeriod()` (`lib/utils/format.ts`)
+  bridges this.
+- **Error shapes — three, not one:**
+  - Deliberate `HTTPException` (401, 404, 409, 413, 422, 502, …) →
+    `{"detail": "<string>"}`.
+  - Request-body/query validation failures caught by FastAPI → `422` with
+    `{"detail": [ {loc, msg, type, ...}, ... ]}` (a **list**, not a string).
+  - Unhandled exceptions → the global handler in `main.py`
+    (`unhandled_exception_handler`) returns `500` with
+    `{"error": ExceptionType, "detail": str(exc), "request_id": ...,
+    "endpoint": "METHOD /path"}`.
+  A client that only reads `detail` as a string handles the first, gets a
+  list for the second, and loses the 500's richer context. There is no
+  single documented error contract; changing any shape is a public API
+  change needing product-owner sign-off (RULES.md §3).
+- **Request correlation:** every response carries `X-Request-ID` (echoed
+  from the request header if sent, else a generated UUID4), logged with
+  method/path/status/duration.
+- **CORS:** explicit origin allowlist in `config.py`
+  (`localhost`/`127.0.0.1` on ports 3000/3001/5173), `allow_credentials:
+  True`, all methods and headers allowed.
+
+### 10.2 UX contracts
+
+- **Entry flow:** `/` → `/login` (middleware redirect). `/welcome` is a
+  marketing landing page linking to `/signup` and `/login`. Signup is a
+  single-step form (PR #24 removed the fake manager-picker step); it
+  rejects common personal-email domains **client-side only** — the backend
+  accepts any valid email. Successful login or signup → `/upload`.
+  Authenticated visitors to any public route are redirected to `/upload`;
+  unauthenticated visitors to a protected route → `/login`.
+- **Deal selection:** the topbar's deal selector lists the caller's deals
+  (`GET /deals`) and auto-selects the first one if none is selected or the
+  stored `dealId` isn't in the list. This check re-runs on every window
+  `focus` event. The selection persists in `localStorage`
+  (`tam-global-state`).
+- **Real vs. demo data:** with a deal selected, pages render only
+  real-backend data or an explicit "unavailable / not supported" state —
+  never a mock or invented figure (PRD.md §7, PHASES.md Phase 1). With no
+  deal selected, the dashboard, financial-analysis, risk-assessment,
+  documents, reports, and customer-analytics pages fall back to the
+  mock-BFF demo view; inquiry shows a "select a deal" prompt; notes edits a
+  local-only buffer. This fallback is the subject of PHASES.md Phase 0.
+- **Persistence of analyst-authored content:** with a deal selected,
+  notes/report-draft snippets (`PUT /deals/{id}/notes`) and inquiries
+  (`/deals/{id}/inquiries`) are persisted server-side. Decision Queue items
+  are never persisted — derived fresh on every request; only
+  inquiry-sourced items have a status a user can change (PR #29).
+- **Readiness:** one source of truth — `GET /deals/{id}/decision-queue`'s
+  `readiness` (`Blocked` / `Draft` / `Ready`), used by both the Reports and
+  Inquiry pages (PR #29).
+- **Error display:** errors surface inline at the point of the failing
+  action (local `errorMsg` state rendered as a banner), not via a global
+  toast system — see RULES.md §3.

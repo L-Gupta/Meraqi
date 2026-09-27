@@ -7,6 +7,14 @@
 > (git history, uncommitted branch state, actual component code) — not
 > `STEPS.md`'s self-reported status, which was already found stale in two
 > places during this pass (see §1 and the note on narrative wiring below).
+>
+> **Split 2026-09-27:** completed work moves to
+> [PHASES_ARCHIVE.md](PHASES_ARCHIVE.md). As of this date **no numbered
+> phase (0–5) has met its Definition of Done** — `main` hasn't changed
+> since PR #29 (2026-08-05) — so the only thing archived is the pre-phase
+> baseline that used to be §0 below. Phase 0 is current, Phase 1 is next;
+> Phases 2–5 stay in this file (not archived) because they aren't done.
+> When a phase's DoD is confirmed, move its section to the archive.
 
 ## Ground Rules (read before doing anything in this file)
 
@@ -32,17 +40,14 @@
 
 ## 0. Current State — What's Actually Done vs. Not
 
-Confirmed by direct inspection this session (not `STEPS.md`'s self-report):
+Re-confirmed 2026-09-27 against `main` at `8b00867`:
 
-- **Done and stable:** ingestion (GL/CSV/XLSX/ZIP/aging/PDF), financial
-  statement building, QoE engine (rules + LLM review), red flag detection
-  (named-category rules only — see Phase 3), NWC/commercial health, net
-  debt bridge + DCF, PDF contract parsing (digital PDFs only, by design —
-  see Parking Lot), databook export, narrative drafting **and its frontend
-  wiring** — `STEPS.md` still marks the frontend wiring "pending," but
-  `junior-analyst-report.tsx` already fetches/generates the real narrative
-  and has a working PDF export. `STEPS.md` is stale here; this document
-  supersedes it.
+- **Done and stable:** everything in the pre-phase baseline — see
+  [PHASES_ARCHIVE.md](PHASES_ARCHIVE.md) for the full list with the PRs
+  that delivered it (ingestion incl. supporting schedules, statements, QoE
+  engine, named-category red flags, NWC/commercial health, net debt + DCF,
+  contracts, full databook, narrative + its frontend wiring/PDF export,
+  auth/encryption/IDOR, notes, inquiries, decision queue, deal settings).
 - **Explicitly not built, by design, and not part of MVP per PRD.md §3.2:**
   Mapping Studio (placeholder in Settings), customer-level analytics
   (honest "not supported" card), OCR for scanned PDFs, multi-party/external
@@ -55,12 +60,12 @@ Confirmed by direct inspection this session (not `STEPS.md`'s self-report):
   unit-economics outlier detection rule exists — every red flag rule is a
   named-category threshold (owner comp %, AR days, etc.), not a plausibility
   check on an arbitrary line item. See Phase 3.
-- **Newly surfaced this session, not previously tracked anywhere:** the
-  dashboard display bug that is now Phase 0.
+- **Surfaced 2026-08-10:** the dashboard display bug that is Phase 0. No
+  commits have landed against it since; it remains diagnosis-only.
 
 ---
 
-## Phase 0 — Fix the Dashboard Display Bug (current blocker)
+## Phase 0 — Fix the Dashboard Display Bug (CURRENT — blocker)
 
 **This phase exists because the product owner is currently blocked by it.
 Nothing below assumes it's solved until it's confirmed solved.**
@@ -146,7 +151,7 @@ phase's diagnostic tasks below need to pivot there.
 
 ---
 
-## Phase 1 — Trust Audit: No Other Fabricated Numbers Anywhere
+## Phase 1 — Trust Audit: No Other Fabricated Numbers Anywhere (NEXT)
 
 **Why this comes right after Phase 0, before any new feature work:** Phase
 0 will have just found one concrete case of formula-fabricated numbers
@@ -182,6 +187,10 @@ Definition-of-Done step is unreliable.
       documented "unavailable" state) before Phase 2 starts.
 
 ---
+
+# Later Phases (not started)
+
+Kept here, not archived — the archive is for completed phases only.
 
 ## Phase 2 — Resolve the QoE Adjustment Finalization Conflict
 
@@ -376,15 +385,48 @@ owner explicitly reprioritizes.
 - **Celery/Redis/PostgreSQL/S3 migration** — named in `plan.txt` as future,
   not started, not needed at current scale (ARCHITECTURE.md §2).
 - **Error response shape inconsistency** between `HTTPException`
-  (`{"detail"}`) and the global handler (`{"error","detail","request_id","endpoint"}`)
-  — ARCHITECTURE.md §6/§10, a public API contract change, needs explicit
-  sign-off, not a drive-by fix.
-- **`(shell)` route group redundancy** with the root layout — ARCHITECTURE.md §4.
+  (`{"detail"}`), request-validation 422s (`{"detail": [...]}`), and the
+  global handler (`{"error","detail","request_id","endpoint"}`) —
+  DESIGN.md §10.1 / ARCHITECTURE.md §10, a public API contract change,
+  needs explicit sign-off, not a drive-by fix.
+- **`(shell)` route group redundancy** with the root layout — ARCHITECTURE.md §10.
 - **JWT non-revocability, single static encryption key with no rotation/KMS,
   O(n) user-lookup scans, auth rate limiting** — all flagged in
-  ARCHITECTURE.md §7/§10 as pre-production hardening, not MVP-blocking at
-  current local/POC scale.
-- **`npm audit` frontend vulnerabilities** (including a critical Next.js
-  advisory per the last `STATUS.md` pass) — not re-verified this session,
-  worth a fresh audit before treating as current, but not part of the MVP
-  accuracy/IAR/red-flag bar.
+  SECURITY.md §9 as pre-production hardening, not MVP-blocking at current
+  local/POC scale.
+- **Frontend dependency advisories** — the old `STATUS.md` `npm audit`
+  finding (8 incl. a critical Next.js advisory) is superseded by open
+  Dependabot PRs (#30, #32–#38; #30 and #38 bump `next`). Triage/merge
+  them; not part of the MVP accuracy/IAR/red-flag bar.
+
+### Open decisions surfaced by the 2026-09-27 docs refresh
+These need a product-owner call; the docs currently describe what exists.
+
+- **Pipeline checkpointing: implement it, or drop it from the docs?**
+  `CLAUDE.md` §3 used to require checkpoint reuse, a `--force` flag, and
+  resume-from-last-good-checkpoint. `pipeline_orchestrator.py` has none of
+  these (ARCHITECTURE.md §10 item 2); `CLAUDE.md` was reworded to describe
+  current behavior. Pick one: build it (touches `pipeline_orchestrator.py`
+  and the `/process` API) or keep the requirement out.
+- **Scheduled e2e workflow: add it, or drop the claim?** Several docs said
+  the `e2e` tier runs nightly; no such workflow exists. The docs now say
+  "manual only." Pick one: add a `schedule:`/`workflow_dispatch` workflow
+  (real-API cost, ~40 min per run) or keep it manual.
+- **Inquiry Copilot model default.** `frontend/app/api/inquiry/assistant/route.ts`
+  defaults to `claude-3-5-sonnet-latest`, which was recorded as retired
+  (404) in commit `a289db3`; without `ANTHROPIC_MODEL` set, the Copilot
+  silently falls back to keyword rules. Probably bump the default — code
+  change not made (ARCHITECTURE.md §9.2).
+
+### Other findings from the refresh (flagged, not fixed)
+- **CI coverage gap:** `tests/test_api/test_inquiry.py` and
+  `tests/test_api/test_settings.py` are unmarked (→ `integration` tier) but
+  aren't listed in any `ci.yml` phase job, so they never run in CI. Also,
+  several routers (`auth.py`, `ingestion.py`, `gl.py`, `inquiry.py`,
+  `settings.py`) and `services/email.py` aren't in any path filter, so a
+  change to only those triggers just lint + unit. See TESTING.md §6.
+- **Stage bookkeeping drift:** `narrative_drafter` is missing from
+  `deal_store`'s initial `stages` dict and its `progress_pct` stage list
+  (ARCHITECTURE.md §10 item 9).
+- **Stale test-module docstrings:** several test files still say "All tests
+  use USE_MOCK_LLM=true" — contradicted by CI and RULES.md §5.1 (TESTING.md §6).
