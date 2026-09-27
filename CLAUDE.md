@@ -65,17 +65,24 @@ A PR into `main` is not considered mergeable based on a self-reported summary
 Actions CI has independently run and passed on that PR. Concretely:
 
 - On every push and every PR targeting `main`, CI runs:
-  - Backend: Ruff lint + `pytest -m "unit or integration"` (mocked LLM via
-    `USE_MOCK_LLM=1`) — this must stay fast; never run the full `e2e` pipeline
-    here.
+  - Backend: Ruff lint + `pytest -m "unit or integration"` (unit tests use the
+    default mocked LLM for speed; integration tests always hit the real
+    Anthropic API via `USE_MOCK_LLM=false`, per `pyproject.toml`'s marker
+    definitions and every phase job in `ci.yml`). `unit` runs on every push;
+    integration runs per affected pipeline phase via path filters, and a
+    single `ci-gate` job aggregates the result (`docs/TESTING.md` §5) — this
+    must stay fast; never run the full `e2e` pipeline here.
   - Frontend: `next lint` and `next build`.
 - Do not merge a `feat/` branch into `main` until that PR shows a green CI
   check. If CI is red, fix the branch and push again — don't merge around it.
 - When a slice/feature is implementation-complete, the correct status update is
   "PR open, waiting on CI" — not "done and merged" — until the merge has
   actually happened post-green-CI.
-- The full `e2e` pipeline (real Claude API calls, ~40 min) runs separately —
-  nightly on `main` or via manual trigger — not as a merge gate.
+- The full `e2e` pipeline (real Claude API calls, ~40 min) is never a merge
+  gate and is not run by any CI workflow today — there is no nightly,
+  scheduled, or manual-dispatch job for it. It runs only when someone invokes
+  `pytest -m e2e` locally. (Open decision: add a scheduled workflow, or keep
+  it manual — see `docs/PHASES.md` Parking Lot.)
 
 ## 3. Testing Strategy — Staged, Not Monolithic
 
@@ -86,20 +93,32 @@ Instead:
 ### Tiered test markers
 ```python
 @pytest.mark.unit         # ms-scale, no I/O, no LLM calls — run constantly
-@pytest.mark.integration  # seconds-scale, mocked LLM (USE_MOCK_LLM=1), real file I/O
+@pytest.mark.integration  # seconds-scale, real (never mocked) LLM/agent call, real file I/O
 @pytest.mark.e2e          # the full real pipeline, real Claude API calls
 ```
 - Default local/dev loop: `pytest -m unit` then `pytest -m "unit or integration"`.
-- `e2e` only runs before a merge to `main`, or on a nightly CI schedule —
-  never as part of routine iteration.
+- `e2e` is manual-only: run it yourself (`pytest -m e2e`) when a change
+  warrants a full-pipeline check, e.g. before an MVP sign-off — never as
+  part of routine iteration, and never as a merge gate (§3a).
 
-### Stage checkpointing
-Each pipeline stage (ingest, parse, financial calc, agent analysis, report
-gen) must write its output to `data/processed/{deal_id}/{stage_name}.json`
-before the next stage begins. The pipeline runner should:
-1. Check whether a valid checkpoint already exists for a stage.
-2. Skip recomputation if it does (unless `--force` is passed).
-3. On failure, resume from the last good checkpoint, not from the start.
+### Stage outputs (what exists today)
+Each pipeline stage writes its outputs — one or more encrypted JSON reports
+named per report, not per stage (e.g. `financials_pnl.json`,
+`qoe_report.json`; full catalog in `docs/SCHEMA.md` §3) — to
+`data/processed/{deal_id}/` before the next stage begins, and each report is
+a Pydantic model that downstream stages re-validate on load. The runner
+(`app/pipeline_orchestrator.py::run`) then:
+1. Runs the requested stages sequentially and records each stage's status
+   (`running` → `complete`/`failed`) on the deal record.
+2. Always recomputes a requested stage — it does **not** check for or reuse
+   an existing output, and there is no `--force` flag.
+3. Stops at the first failed stage. There is no automatic resume; to
+   re-run from a given point, call `POST /deals/{id}/process` with an
+   explicit `stages` list.
+
+Open decision: implement checkpoint reuse / `--force` / resume-from-last-good,
+or keep this section describing current behavior — see `docs/PHASES.md`
+Parking Lot. Don't build it without that decision.
 
 ### Per-feature test branches gate progress
 When building a new pipeline stage or feature, do not consider it "done" and

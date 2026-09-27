@@ -1,3 +1,5 @@
+> **Note:** this early-May 2026 spec describes the **mock/demo data** contract (`lib/mock-data/*`, `app/api/deal/*`), not the real backend API — for that, see [`docs/API.md`](../../docs/API.md) and `lib/api/fdd-client.ts`.
+
 # TAM Backend Data Contract (Whole System)
 
 Use this as the canonical payload format to feed the full TAM UI (all tabs, not only Executive Summaries).

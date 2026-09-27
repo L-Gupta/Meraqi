@@ -30,6 +30,7 @@ Three packages of pre-generated financial statement schedules for Acme Manufactu
 
 ## Usage notes
 
-- These schedule files are **not in raw GL format** and cannot be fed directly to the ingestion pipeline today.
-- They are designed for cross-document validation, anomaly detection testing (Steps 4–8), and future schedule-format ingestion support.
-- For direct ingestion tests, use `backend/tests/fixtures/sample_gl.csv` (raw GL format with both P&L and BalanceSheet rows).
+- These schedule files are **not in raw GL format**, so they can't be the primary input the pipeline builds statements from.
+- **Since commit `6fc586f` (2026-08-03), schedule-format files like these are ingested** alongside a GL: `document_registry.py` classifies them by content (e.g. `Line Item` + `YYYY-MM` columns with "Total Assets"/"EBITDA"/"Net change in cash" row labels; debt/working-capital/inventory/lease column sets). Statement and revenue/COGS/opex/working-capital/inventory schedules are reconciled against the GL-derived statements as tie-outs (never used to replace them); `15_debt_schedule.csv` is parsed into debt instruments; lease/fixed-asset/equity/payroll/bank files are parsed for viewing only. See `docs/GLOSSARY.md` → "Document Groups A / B / C".
+- The same-format top-level fixtures (`../income_statement_monthly.csv`, `../balance_sheet_monthly.csv`, etc.) are what `tests/test_pipeline/test_schedule_ingestion.py` exercises. The packages in this folder aren't currently referenced by any test; they remain intended for cross-document validation and anomaly-detection work (e.g. PHASES.md Phase 3's outlier rule). Files without a schedule counterpart in the classifier (e.g. `00_*` manifests, `04_trial_balance.csv`, `05_general_ledger_source_copy.csv`) aren't covered by this and haven't been verified.
+- For direct GL ingestion tests, use `backend/tests/fixtures/sample_gl.csv` (raw GL format with both P&L and BalanceSheet rows).
