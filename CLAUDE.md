@@ -65,8 +65,11 @@ A PR into `main` is not considered mergeable based on a self-reported summary
 Actions CI has independently run and passed on that PR. Concretely:
 
 - On every push and every PR targeting `main`, CI runs:
-  - Backend: Ruff lint + `pytest -m "unit or integration"` (mocked LLM via
-    `USE_MOCK_LLM=1`) — this must stay fast; never run the full `e2e` pipeline
+  - Backend: Ruff lint + `pytest -m "unit or integration"` (unit tests use the
+    default mocked LLM for speed; integration tests always hit the real
+    Anthropic API via `USE_MOCK_LLM=false`, per `pyproject.toml`'s marker
+    definitions and every phase job in `ci.yml`) — this must stay fast; never
+    run the full `e2e` pipeline
     here.
   - Frontend: `next lint` and `next build`.
 - Do not merge a `feat/` branch into `main` until that PR shows a green CI
@@ -86,7 +89,7 @@ Instead:
 ### Tiered test markers
 ```python
 @pytest.mark.unit         # ms-scale, no I/O, no LLM calls — run constantly
-@pytest.mark.integration  # seconds-scale, mocked LLM (USE_MOCK_LLM=1), real file I/O
+@pytest.mark.integration  # seconds-scale, real (never mocked) LLM/agent call, real file I/O
 @pytest.mark.e2e          # the full real pipeline, real Claude API calls
 ```
 - Default local/dev loop: `pytest -m unit` then `pytest -m "unit or integration"`.
