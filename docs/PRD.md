@@ -12,7 +12,7 @@
 >
 > Refreshed 2026-09-27 against `main` as of PR #29: narrative frontend
 > wiring/PDF export marked complete, statement-builder path and databook tab
-> list corrected, test-tier wording aligned with RULES.md §5.1, and the
+> list corrected, test-tier wording aligned with `.claude/rules/testing.md`, and the
 > nonexistent nightly e2e run removed. The analyst-override conflict (§3.1,
 > Flow 2) is deliberately **not** resolved here — see the notes in place.
 
@@ -89,7 +89,7 @@ Concretely, that bar breaks into:
 | Deterministic financial statement construction (P&L, Balance Sheet, Cash Flow) — Python/Decimal only, cent-precision, traceable to source GL lines | **Built** — `pipeline/financial_builder/*`, `GET /financials/{pnl,balance-sheet,cash-flow}` |
 | Chart-of-accounts mapping (LLM-assisted, never LLM-computed) | **Built** — CoA mapper agent, mock + real modes |
 | QoE adjustment waterfall with full source-GL audit trail per adjustment | **Built** — `pipeline/qoe_engine/*`, `GET /qoe`, `GET /qoe/adjustments/{id}/source` |
-| Analyst review/override of QoE adjustments (accept/reject/modify an LLM- or rule-proposed adjustment, with reason + who + when recorded) | **In progress** — schema/orchestrator changes on current branch (`feat/qoe-adjustment-override`), not yet merged. This is the human-in-the-loop control that keeps "no hallucinated numbers" true when an LLM-proposed adjustment is wrong. **⚠️ Unresolved conflict:** this row conflicts with the "engine numbers are finalized" rule (RULES.md §0.2/§4/§7.3). Resolving it and updating this row is tracked as [PHASES.md](PHASES.md) Phase 2, Task 4 — not decided here. |
+| Analyst review/override of QoE adjustments (accept/reject/modify an LLM- or rule-proposed adjustment, with reason + who + when recorded) | **In progress** — schema/orchestrator changes on current branch (`feat/qoe-adjustment-override`), not yet merged. This is the human-in-the-loop control that keeps "no hallucinated numbers" true when an LLM-proposed adjustment is wrong. **⚠️ Unresolved conflict:** this row conflicts with the "engine numbers are finalized" rule (`.claude/rules/engine-numbers-finalized.md`). Resolving it and updating this row is tracked as [PHASES.md](PHASES.md) Phase 2, Task 4 — not decided here. |
 | Red flag detection: threshold-rule-based (owner comp %, related-party %, AR days, EBITDA volatility/margin decline, NWC volatility, cash conversion, deferred revenue decline, revenue seasonality) | **Built** — `pipeline/redflag_detector/rules.py` |
 | Cross-document consistency red flags (GL vs AR/AP aging tie-out failures, GL-derived net debt vs contract-extracted debt terms mismatch) | **Built** — `_rule_cross_doc_tie_out_failures`, `_rule_net_debt_reconciliation_mismatch`, `GET /tie-outs` |
 | **Line-item / unit-economics outlier detection** (a single GL line or unit price implausible relative to the rest of the data set — the "water costing $1M" case) | **Not built.** Current rules are all pre-defined ratio/threshold checks against known categories (owner comp, AR days, etc.); there is no general statistical-outlier or plausibility-check rule that flags an arbitrary line item as "this number looks wrong on its face" independent of a named category. This is a real MVP gap per the product owner's bar, not just a "later" nicety. |
@@ -186,7 +186,7 @@ QoE waterfall and downstream IAR figures recompute deterministically from
 the now-corrected adjustment set. *(This flow's backend plumbing is in
 progress on `feat/qoe-adjustment-override`.)*
 
-> ⚠️ **This flow conflicts with RULES.md §0.2** ("engine numbers are
+> ⚠️ **This flow conflicts with `.claude/rules/engine-numbers-finalized.md`** ("engine numbers are
 > finalized — no analyst override of the numeric value"). Known to the
 > product owner; resolution and the rewrite of this flow are tracked as
 > [PHASES.md](PHASES.md) Phase 2, Task 4. Don't build against this flow as
@@ -270,7 +270,7 @@ perspective:
   — flagged as follow-up work, not yet defined in this PRD.)
 - **No regression in determinism:** CI's `unit` tier (no LLM calls) and its
   per-phase `integration` tier (real Anthropic API, `USE_MOCK_LLM=false` —
-  never mocked, per RULES.md §5.1 and `CLAUDE.md` §3) stay green, and the
+  never mocked, per `.claude/rules/testing.md` and `CLAUDE.md` §3) stay green, and the
   real-LLM `e2e` tier passes when run manually before an MVP sign-off — a
   change that makes numbers non-reproducible or LLM-dependent is a
   regression regardless of how good the feature looks.

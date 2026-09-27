@@ -22,7 +22,7 @@ Start with [`docs/`](docs/):
 | [docs/DESIGN.md](docs/DESIGN.md) | Design system + API/UX contracts |
 | [docs/SECURITY.md](docs/SECURITY.md) | Threat model and security controls |
 | [docs/TESTING.md](docs/TESTING.md) | Test tiers, how to run, CI gate |
-| [docs/RULES.md](docs/RULES.md) | Operating rules for AI agents in this repo |
+| [.claude/rules/](.claude/rules/) | Operating rules for AI agents in this repo (one file per rule; Claude Code loads them automatically) |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Append-only decision log |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Domain and project terms |
 | [CLAUDE.md](CLAUDE.md) | Branching, commits, CI gate, testing policy |

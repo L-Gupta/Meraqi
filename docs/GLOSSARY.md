@@ -89,7 +89,7 @@
 | **Mock BFF** | The Next.js `/api/deal/*` routes serving synthetic data for the no-deal demo view ("backend-for-frontend"). |
 | **Demo view / mock fallback** | What deal-data pages render when no `dealId` is selected — the leading suspect in PHASES.md Phase 0. |
 | **Mapping Studio** | A planned (not built) UI for correcting CoA mappings; currently a labeled placeholder in Settings. |
-| **Engine numbers are finalized** | Product rule: no user or AI may overwrite a pipeline-computed figure (RULES.md §0.2). |
+| **Engine numbers are finalized** | Product rule: no user or AI may overwrite a pipeline-computed figure (`.claude/rules/engine-numbers-finalized.md`). |
 
 ## Security and engineering terms
 
