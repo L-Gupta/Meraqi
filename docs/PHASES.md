@@ -419,6 +419,7 @@ These need a product-owner call; the docs currently describe what exists.
   change not made (ARCHITECTURE.md §9.2).
 
 ### Other findings from the refresh (flagged, not fixed)
+- **LLM-set QoE amounts (rule violation on `main`):** `backend/app/agents/qoe_reviewer.py:155-157` applies the model's `corrected_amount` on a `modify` decision as the adjustment's `adjustment_amount`, which flows into adjusted EBITDA. Violates "LLMs never compute or alter a financial figure" (`.claude/rules/llm-usage.md`, PRD.md §4). Closely related to Phase 2's finalization question — worth deciding together.
 - **CI coverage gap:** `tests/test_api/test_inquiry.py` and
   `tests/test_api/test_settings.py` are unmarked (→ `integration` tier) but
   aren't listed in any `ci.yml` phase job, so they never run in CI. Also,
