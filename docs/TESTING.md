@@ -1,7 +1,7 @@
 # TESTING.md — Test Strategy, Running Tests, and the CI Gate
 
 > Written 2026-09-27 from `backend/pyproject.toml`, `backend/tests/**`,
-> `.github/workflows/ci.yml`, `CLAUDE.md` §3/§3a, and RULES.md §5. Where
+> `.github/workflows/ci.yml`, `CLAUDE.md` §3/§3a, and `.claude/rules/testing.md`. Where
 > those disagree with the code, the code wins and the gap is listed in §6.
 
 ## 1. Strategy
@@ -13,7 +13,7 @@ what changed. Two non-negotiables drive everything:
 1. **No mock LLM outside the `unit` tier.** Integration and e2e tests hit the
    real Anthropic API (`USE_MOCK_LLM=false`). Mock mode exists only so
    `unit` stays fast and key-free, and so the app runs without a key. See
-   RULES.md §0.1/§5.1 and [DECISIONS.md](DECISIONS.md).
+   `.claude/rules/testing.md` and [DECISIONS.md](DECISIONS.md).
 2. **Deterministic numbers.** LLM output never produces a figure, so the
    financial assertions in integration tests stay stable even with a real
    model in the loop; where model *phrasing* legitimately varies, tests
@@ -142,7 +142,7 @@ on the same ref cancels the in-flight run (`concurrency: cancel-in-progress`).
 
 ## 6. Coverage expectations and known gaps
 
-**Expectations** (from `CLAUDE.md` §3, RULES.md §5):
+**Expectations** (from `CLAUDE.md` §3, `.claude/rules/testing.md`):
 - Every new deal-scoped endpoint gets added to
   `test_api/test_authorization.py`'s IDOR sweep — mandatory, not optional.
 - New pipeline stages are tested in isolation (and their output schema

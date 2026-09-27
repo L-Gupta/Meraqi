@@ -9,7 +9,7 @@
 **None of these exist in the codebase** — no ORM, no migrations, no Redis
 client, no Celery app, no queue definitions, no connection settings in
 `config.py` or `pyproject.toml`. `plan.txt` named them as an early cloud
-design; they were never built (ARCHITECTURE.md §2, RULES.md §2). This file
+design; they were never built (ARCHITECTURE.md §2, `.claude/rules/backend-stack.md`). This file
 documents what actually plays each role:
 
 | Role you'd expect | What TAM actually uses | Section |

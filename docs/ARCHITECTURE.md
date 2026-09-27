@@ -349,7 +349,7 @@ narrative drafter) subclass `BaseAgent`, which enforces:
   in `app/pipeline/*` before/after the agent call.
 - Mock/real dispatch via `settings.use_mock_llm` — `True` by default in
   `config.py` so the pipeline runs without a key using each agent's
-  `_mock_response()` fixture. Per project policy (RULES.md §5.1) mock mode
+  `_mock_response()` fixture. Per project policy (`.claude/rules/testing.md`) mock mode
   is only for the `unit` tier; CI's integration jobs and any AI-driven run
   use the real API.
 - Tool-use for structured output — `_tools` written in OpenAI's
@@ -444,7 +444,7 @@ the team's own prior self-assessment, consolidated in one place:
    fetch/generate + PDF export) but framed as an internal summary memo
    rather than the IAR deliverable — PHASES.md Phase 4.
 5. **QoE adjustment override is mid-flight, uncommitted,** on
-   `feat/qoe-adjustment-override` and conflicts with RULES.md §0.2 — see
+   `feat/qoe-adjustment-override` and conflicts with `.claude/rules/engine-numbers-finalized.md` — see
    PHASES.md Phase 2.
 6. **Security items** — non-revocable JWTs, single static key with no
    rotation/KMS, O(n) file-scan user lookups, no auth rate limiting. See

@@ -298,7 +298,7 @@ trigger), `Sparkles`/`Bot` (AI-related UI, e.g. `tam-llm-sidebar.tsx`).
 ## 7. State Management (relevant to design consistency)
 
 The store split itself (Query for server state, Zustand for UI state) is
-documented in ARCHITECTURE.md §2 and RULES.md §1 — not repeated here. The
+documented in ARCHITECTURE.md §2 and `.claude/rules/frontend-stack.md` — not repeated here. The
 design-relevant rule: a new styled component that needs to remember a
 presentational preference across a session (e.g. collapsed/expanded)
 should follow the existing Zustand-with-`persist` pattern
@@ -471,7 +471,7 @@ user-facing behavior the frontend commits to on top of them.
   A client that only reads `detail` as a string handles the first, gets a
   list for the second, and loses the 500's richer context. There is no
   single documented error contract; changing any shape is a public API
-  change needing product-owner sign-off (RULES.md §3).
+  change needing product-owner sign-off (`.claude/rules/backend-error-handling.md`).
 - **Request correlation:** every response carries `X-Request-ID` (echoed
   from the request header if sent, else a generated UUID4), logged with
   method/path/status/duration.
@@ -510,4 +510,4 @@ user-facing behavior the frontend commits to on top of them.
   Inquiry pages (PR #29).
 - **Error display:** errors surface inline at the point of the failing
   action (local `errorMsg` state rendered as a banner), not via a global
-  toast system — see RULES.md §3.
+  toast system — see `.claude/rules/frontend-error-handling.md`.

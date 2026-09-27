@@ -12,10 +12,11 @@
 - **Active phase:** [Phase 0 — Fix the Dashboard Display Bug](PHASES.md#phase-0--fix-the-dashboard-display-bug-current--blocker).
   Diagnosis only; no fix written; root cause not confirmed live. Next:
   Phase 1 (trust audit). No numbered phase is complete yet.
-- **`main`:** `8b00867` (PR #29, 2026-08-05). Nothing merged since.
+- **`main`:** docs-only merges since PR #29 (PR #40 docs refresh,
+  2026-09-27). No code has changed since 2026-08-05.
 - **In flight:**
-  - `chore/docs-refresh` — this docs refresh (docs only, no code). PR not
-    yet opened as of this writing.
+  - Docs refresh merged as PR #40; the `.claude/rules/` split follows on
+    `chore/rules-to-claude-dir`.
   - `feat/qoe-adjustment-override` — uncommitted QoE override work, blocked
     on a product decision (Phase 2). Don't build on it.
 - **Open Dependabot PRs:** #30, #32–#38 (npm), untriaged.
@@ -52,17 +53,15 @@ On `feat/qoe-adjustment-override`, uncommitted: `schemas/qoe.py` (override
 fields), `qoe_engine/orchestrator.py` (`apply_override()`,
 `add_manual_adjustment()`), `api/v1/qoe.py` (`PATCH`/`POST
 /deals/{id}/qoe/adjustments…`), `qoe_engine/normalizer.py`. The
-`normalized_amount` overwrite path violates RULES.md §0.2 ("engine numbers
+`normalized_amount` overwrite path violates `.claude/rules/engine-numbers-finalized.md` ("engine numbers
 are finalized"). Open: does a categorical accept/reject survive? Does
 manual-add survive? **Product owner decides** (PHASES.md Phase 2 Task 1);
 PRD.md §3.1/Flow 2 get rewritten after (Phase 2 Task 4).
 
-**Housekeeping for that branch:** its working tree still carries the
-`CLAUDE.md` mock-LLM wording fix, which is now committed on
-`chore/docs-refresh`. Once that PR merges, discard the working-tree copy
-(`git checkout -- CLAUDE.md` on the feat branch, then rebase on `main`)
-so it isn't committed twice. The untracked `docs/` directory in that
-checkout is likewise superseded by the committed version.
+**Housekeeping for that branch:** the `CLAUDE.md` wording fix and the
+`docs/` + `.claude/rules/` files that used to sit uncommitted in its
+working tree are now on `main`. The branch should be brought up to `main`
+before its QoE work is committed, so none of those get committed twice.
 
 ### Open decisions awaiting the product owner
 Full text in [PHASES.md](PHASES.md) Parking Lot → "Open decisions":
@@ -90,9 +89,10 @@ Full text in [PHASES.md](PHASES.md) Parking Lot → "Open decisions":
   DECISIONS, TESTING, SECURITY, PHASES_ARCHIVE added; `STEPS.md`/`STATUS.md`
   bannered as superseded; `CLAUDE.md` mock-LLM fix committed separately from
   the QoE branch; `CLAUDE.md` §3/§3a reworded to drop the nonexistent
-  checkpointing and nightly e2e.
+  checkpointing and nightly e2e (PR #40). Same day: `docs/RULES.md` split
+  into `.claude/rules/` (one file per rule, auto-loaded by Claude Code).
 - **2026-08-10** — mock-LLM policy settled: mock only in the `unit` tier
-  (RULES.md §0.1). "Engine numbers are finalized" rule stated (RULES.md §0.2).
+  (`.claude/rules/testing.md`). "Engine numbers are finalized" rule stated (`.claude/rules/engine-numbers-finalized.md`).
 - **2026-08-03 → 08-05 (PRs #1–#29)** — auth/encryption/IDOR, real-API CI,
   notes, settings, inquiries, decision queue, password reset via email,
   dead pages removed, one-step signup, Margin/Cost QoE, full databook,
@@ -109,7 +109,7 @@ Mandatory for any session (human or AI) that finishes a task here:
    **Resolved** entry (dated). When a PHASES.md phase completes, move its
    section to PHASES_ARCHIVE.md.
 3. Never describe a state the repo isn't in. Unsure whether something is
-   done? Check the code or ask (RULES.md §8).
+   done? Check the code or ask (`.claude/rules/if-in-doubt.md`).
 4. At session start, cross-check this file against `git status`,
    `git log`, and the code it names — treat it as a strong lead, not a
    verified fact (`CLAUDE.md` §3a: no self-reported done).

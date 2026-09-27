@@ -128,7 +128,7 @@ anything multi-tenant.
   403 — so valid IDs aren't confirmed to non-owners. `GET /deals` filters by
   owner. Deal IDs are UUID4.
 - **Regression suite:** `tests/test_api/test_authorization.py` — every new
-  deal-scoped endpoint must be added (RULES.md §5.2).
+  deal-scoped endpoint must be added (`.claude/rules/deal-ownership.md`).
 - **Next.js assistant route** (`/api/inquiry/assistant`) forwards the
   caller's cookie to the backend, so ownership is still enforced there. The
   route itself has no auth check: with no `dealId` it answers from mock
@@ -147,7 +147,7 @@ anything multi-tenant.
   reads of processed reports (statements, QoE, etc.).
 - **`AUDIT` application log lines** for state changes: deal created, file
   uploaded / rejected, ZIP member extracted / dropped, pipeline triggered,
-  auth events (§2). Convention in RULES.md §1/§3.
+  auth events (§2). Convention in `.claude/rules/logging-and-audit.md`.
 - Neither log is tamper-evident; both are plain append-only files.
 
 ## 7. Secrets handling and logging hygiene
@@ -233,7 +233,7 @@ so the session cookie gets `secure` (§3).
 6. **`secure` cookie flag keyed off CORS config**, not request scheme (§3).
 7. **Verbose 500 bodies** (§7).
 8. **No multi-tenant model** — single owner per deal is the hard boundary;
-   don't simulate team access with workarounds (RULES.md §7.5).
+   don't simulate team access with workarounds (`.claude/rules/deal-ownership.md`).
 9. **Frontend dependency advisories** — open Dependabot PRs (#30, #32–#38),
    including `next` bumps, are untriaged.
 10. **Access log gaps** — processed-report reads aren't logged (§6).
