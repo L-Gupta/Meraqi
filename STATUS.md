@@ -1,3 +1,8 @@
+> **Superseded — see [docs/PHASES.md](docs/PHASES.md) and [docs/MEMORY.md](docs/MEMORY.md) for current status.**
+> Kept below unchanged as a historical record (last meaningfully updated mid-2026); many
+> entries are stale (test count, `/onboarding`, inquiry placeholder, "still to do" items
+> since completed).
+
 # Repository Status
 
 | Current | Should Be |

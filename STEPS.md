@@ -1,3 +1,7 @@
+> **Superseded — see [docs/PHASES.md](docs/PHASES.md) for the current build plan** (and
+> [docs/PHASES_ARCHIVE.md](docs/PHASES_ARCHIVE.md) for completed work). Kept below unchanged
+> as the historical record of the original 8-step build; its status notes are not maintained.
+
 # FDD Engine — Step-by-Step Implementation Tracker
 
 ## How We Work
