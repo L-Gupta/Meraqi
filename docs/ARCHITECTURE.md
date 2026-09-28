@@ -472,3 +472,8 @@ the team's own prior self-assessment, consolidated in one place:
 13. **`STEPS.md` and `STATUS.md` are historical.** Both now carry a
     "Superseded" banner; [PHASES.md](PHASES.md) and [MEMORY.md](MEMORY.md)
     are the current sources of truth.
+14. **The "agents never alter a figure" rule has one violation on `main`:**
+    `QoEReviewerAgent`'s `modify` decision sets `adjustment_amount` from the
+    model's `corrected_amount` (`agents/qoe_reviewer.py:155-157`). §9.1's
+    statement of the rule describes intent; this is the exception. Flagged,
+    not fixed (PHASES.md Parking Lot).

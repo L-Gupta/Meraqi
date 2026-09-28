@@ -71,6 +71,7 @@ Full text in [PHASES.md](PHASES.md) Parking Lot → "Open decisions":
    bump it?
 
 ### Known issues (not blocking)
+- **LLM can alter a QoE figure on `main`:** `agents/qoe_reviewer.py` lets a `modify` decision overwrite `adjustment_amount` with the model's `corrected_amount` (and leaves `normalized_amount` stale) — violates `.claude/rules/llm-usage.md`. Found 2026-09-27; needs a product-owner call on the fix (likely remove `modify`, or turn it into reject + flag). PHASES.md Parking Lot.
 - No general outlier/plausibility red flag rule (Phase 3; design undecided,
   PRD.md §8).
 - CI never runs `test_api/test_inquiry.py` / `test_api/test_settings.py`
@@ -84,6 +85,7 @@ Full text in [PHASES.md](PHASES.md) Parking Lot → "Open decisions":
 
 ## Resolved (compressed)
 
+- **2026-09-27** — Nested `CLAUDE.md` context hierarchy added (30 files across `backend/`, `frontend/`, `.github/`); root `CLAUDE.md` restructured as the entry point with a "Where to Look" table and a mandatory Session-End Maintenance checklist (§6); `context-hierarchy` skill + `context-sync` rule ported from the CS639 p2 project.
 - **2026-09-27** — `docs/` committed (was untracked); ARCHITECTURE/PRD/RULES/
   DESIGN/PHASES refreshed against PRs #19–#29; API, SCHEMA, GLOSSARY,
   DECISIONS, TESTING, SECURITY, PHASES_ARCHIVE added; `STEPS.md`/`STATUS.md`
