@@ -12,18 +12,14 @@
 - **Active phase:** [Phase 0 — Fix the Dashboard Display Bug](PHASES.md#phase-0--fix-the-dashboard-display-bug-current--blocker).
   Diagnosis only; no fix written; root cause not confirmed live. Next:
   Phase 1 (trust audit). No numbered phase is complete yet.
-- **`main`:** docs-only merges since PR #29 (latest: PR #42 context hierarchy,
-  2026-09-27). No code has changed since 2026-08-05.
+- **`main`:** latest merge is PR #43 (Docker local stack, 2026-10-11).
+  Application code (`backend/app/`, `frontend/`) is unchanged since
+  2026-08-05.
 - **In flight:**
-  - `feat/docker-compose`: `start.bat` now runs the stack in Docker by
-    default (`--local` = native). Verified locally on 2026-10-11 (cold
-    start, seeding, health, login, hot reload). PR #43 open, CI green,
-    waiting on merge. Docker-mode data lives in the `tam-backend-data` volume,
-    separate from `backend/data/`.
   - `feat/qoe-adjustment-override` — uncommitted QoE override work, blocked
     on a product decision (Phase 2). Don't build on it. Those four modified
-    files are in the working tree (unstaged); they carried over when
-    `feat/docker-compose` was branched from `main`.
+    files sit unstaged in whatever branch is checked out. Check
+    `git status` before committing anything.
 - **Open Dependabot PRs:** #30, #32–#38 (npm), untriaged.
 
 ---
@@ -94,6 +90,7 @@ Full text in [PHASES.md](PHASES.md) Parking Lot → "Open decisions":
 
 ## Resolved (compressed)
 
+- **2026-10-11** — `start.bat` runs the stack in Docker by default (`docker-compose.yml`, dev-mode containers with hot reload); `start.bat --local` keeps the native run. Docker-mode data lives in the `tam-backend-data` volume, seeded once from `backend/data/` and separate from it after that (bind mounts were ~50× slower). PR #43.
 - **2026-09-27** — Nested `CLAUDE.md` context hierarchy added (30 files across `backend/`, `frontend/`, `.github/`); root `CLAUDE.md` restructured as the entry point with a "Where to Look" table and a mandatory Session-End Maintenance checklist (§6); `context-hierarchy` skill + `context-sync` rule ported from the CS639 p2 project.
 - **2026-09-27** — `docs/` committed (was untracked); ARCHITECTURE/PRD/RULES/
   DESIGN/PHASES refreshed against PRs #19–#29; API, SCHEMA, GLOSSARY,
