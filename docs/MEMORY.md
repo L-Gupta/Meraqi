@@ -17,8 +17,8 @@
 - **In flight:**
   - `feat/docker-compose`: `start.bat` now runs the stack in Docker by
     default (`--local` = native). Verified locally on 2026-10-11 (cold
-    start, seeding, health, login, hot reload). Committed but not pushed,
-    no PR yet. Docker-mode data lives in the `tam-backend-data` volume,
+    start, seeding, health, login, hot reload). PR #43 open, CI green,
+    waiting on merge. Docker-mode data lives in the `tam-backend-data` volume,
     separate from `backend/data/`.
   - `feat/qoe-adjustment-override` — uncommitted QoE override work, blocked
     on a product decision (Phase 2). Don't build on it. Those four modified
