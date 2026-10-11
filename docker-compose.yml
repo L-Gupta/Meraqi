@@ -1,0 +1,67 @@
+# TAM local dev stack — `start.bat` runs `docker compose up -d --build`.
+# Stop with: docker compose down
+#
+# Dev-mode containers: backend/ and frontend/ are bind-mounted so edits
+# hot-reload. Secrets come from the same env files as a native run; nothing is
+# baked into an image.
+#
+# Data: the backend's data/ dir (AES-256-GCM encrypted at rest) lives in the
+# named volume `tam-backend-data`, NOT in backend/data/ on the Windows disk —
+# Docker Desktop bind mounts made every file open ~30ms (login took ~20s).
+# start.bat seeds the volume once from backend/data/ (encrypted bytes copied
+# as-is); after that, Docker mode and `start.bat --local` have separate data.
+# `docker compose down -v` DELETES this volume and everything in it.
+
+services:
+  backend:
+    build: ./backend
+    env_file:
+      # Same precedence as app/config.py: backend/.env.local overrides root .env.
+      - path: ./.env
+        required: false
+      - path: ./backend/.env.local
+        required: false
+    environment:
+      # Windows bind mounts don't deliver inotify events; poll instead.
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./backend:/app
+      - tam-backend-data:/app/data
+    ports:
+      # Published on loopback only, like the native `--host 127.0.0.1`.
+      # The frontend shares this service's network namespace (below), so its
+      # port is published here too.
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      # Fast checks during startup (gates the frontend), then quiet down so
+      # /health doesn't flood the backend log.
+      start_period: 60s
+      start_interval: 2s
+      interval: 60s
+      timeout: 3s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    # Shares the backend's network namespace so `localhost:8000` means the same
+    # thing to the browser and to Next.js server-side routes
+    # (app/api/inquiry/assistant/route.ts) — no container-only API URL needed.
+    network_mode: "service:backend"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      # Keep the Linux node_modules / build cache from the image, not the host's.
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  tam-backend-data:
+    # Fixed name so it survives a renamed checkout folder (compose would
+    # otherwise prefix it with the project name).
+    name: tam-backend-data

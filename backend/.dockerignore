@@ -1,0 +1,11 @@
+# Build context only needs pyproject.toml — keep secrets, data, and caches out of it.
+.env
+.env.*
+data/
+.venv/
+tests/
+test-docs/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
