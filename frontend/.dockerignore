@@ -1,0 +1,6 @@
+# Build context only needs package.json + package-lock.json.
+.env
+.env.*
+node_modules/
+.next/
+tsconfig.tsbuildinfo

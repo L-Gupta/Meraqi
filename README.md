@@ -91,14 +91,29 @@ ANTHROPIC_MODEL=claude-sonnet-5                  # set this: the code's default 
 
 ## Run
 
-**Windows one-click:** double-click or run `start.bat` from the repo root.
-It checks for `backend/.venv` and `frontend/node_modules` (running
-`npm install` if needed), starts the backend (`uvicorn` on
-`127.0.0.1:8000`, `--reload`) and the frontend (`npm run dev` on port 3000)
-in their own windows, waits for `GET /health`, and opens the browser. It
-also starts Docker Desktop and runs `docker compose up` *only if* a compose
-file exists — none does today, and nothing requires Docker. Close the two
-windows to stop.
+**Windows one-click (Docker):** double-click or run `start.bat` from the repo
+root. It starts Docker Desktop if needed, builds the images, and runs
+`docker-compose.yml`: the backend (`uvicorn --reload` on `localhost:8000`)
+and frontend (`next dev` on `localhost:3000`) as dev-mode containers with
+the source bind-mounted, so edits hot-reload. It waits for `GET /health`
+and opens the browser. First run takes a few minutes. Logs:
+`docker compose logs -f`. Stop: `docker compose down`.
+
+- Secrets come from the same root `.env` / `backend/.env.local` as a native
+  run; nothing is baked into an image.
+- **Backend data lives in the Docker volume `tam-backend-data`, not in
+  `backend/data/`** (Windows bind mounts made data access ~50× slower).
+  The first `start.bat` run copies `backend/data/` into it once (encrypted
+  files, copied as-is). After that, Docker mode and `--local` mode have
+  **separate data**. `docker compose down -v` deletes the volume.
+- After changing `pyproject.toml` or `package.json`, just re-run
+  `start.bat`; it rebuilds the images.
+
+**Windows one-click (native, no Docker):** `start.bat --local` checks for
+`backend/.venv` and `frontend/node_modules` (running `npm install` if
+needed), starts `uvicorn` on `127.0.0.1:8000` and `npm run dev` on port 3000
+in their own windows, waits for `GET /health`, and opens the browser. Close
+the two windows to stop. Uses `backend/data/` directly.
 
 **Manually (any OS):**
 
@@ -112,7 +127,8 @@ cd frontend && npm run dev
 Then open http://localhost:3000 → sign up → you land on `/upload` → create a
 deal, upload files (sample data in `backend/test-docs/`), and process it.
 Backend API docs: http://localhost:8000/docs. Runtime data lives in
-`backend/data/` (gitignored, encrypted at rest).
+`backend/data/` for native runs, or the `tam-backend-data` volume under
+Docker (gitignored / not in the repo either way; encrypted at rest).
 
 ## Test
 

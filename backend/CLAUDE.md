@@ -9,10 +9,11 @@
 - `.env.example` — every env var with comments. Copy it to the repo-root `.env` or `backend/.env.local`.
 - `test-docs/` — sample files for **manual** uploads (not used by automated tests); has its own `README.md`.
 - `data/` (gitignored, created at runtime) — all persisted state, encrypted except `access.log` and `dev_outbox/`.
+- `Dockerfile` / `.dockerignore` — local-dev image used by the root `docker-compose.yml`. It holds dependencies only; source is bind-mounted.
 
 **How it fits in:** Serves `/api/v1` on port 8000 to the Next.js frontend. CI (`.github/`) lints it, runs `unit`, and runs each affected phase's integration tests against the real Anthropic API.
 
 **Gotchas**
 - The app won't import without `FILE_ENCRYPTION_KEY` and `JWT_SECRET_KEY`, and that includes tests.
 - `use_mock_llm` defaults to `True` in code, but policy is real API everywhere except the `unit` tier (`.claude/rules/testing.md`).
-- Run from `backend/` so `data/` lands in `backend/data/`.
+- Run from `backend/` so `data/` lands in `backend/data/`. Under Docker (`start.bat`), `/app/data` is the `tam-backend-data` volume instead. It was seeded once from `backend/data/` and then diverges, so the two modes don't share data.

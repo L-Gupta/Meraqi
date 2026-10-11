@@ -211,8 +211,9 @@ backend/app/
 
 `data/` (gitignored, created on startup by `config.py`, relative to the
 directory the server is launched from — `backend/data/` when launched via
-`start.bat` or `cd backend && uvicorn ...`) holds all persisted state. Full
-layout in [SCHEMA.md](SCHEMA.md) §1.
+`start.bat --local` or `cd backend && uvicorn ...`; the `tam-backend-data`
+Docker volume mounted at `/app/data` when launched via `start.bat`/compose)
+holds all persisted state. Full layout in [SCHEMA.md](SCHEMA.md) §1.
 
 ## 4. Frontend File/Folder Structure
 
@@ -462,9 +463,12 @@ the team's own prior self-assessment, consolidated in one place:
 10. **Two LLM integrations with different guarantees** (§9.1 vs. §9.2) —
     the frontend Copilot has no retry, no mock switch, a retired default
     model, and silently swallows errors.
-11. **No Dockerfile or compose setup** — local-only run via `uvicorn` and
-    `next dev`/`next start`. (`start.bat` will start Docker Desktop and run
-    `docker compose up` *if* a compose file exists; none does.)
+11. **Docker setup is local-dev only** — `docker-compose.yml` +
+    `backend/Dockerfile`/`frontend/Dockerfile` run `uvicorn --reload` and
+    `next dev` with bind-mounted source (what `start.bat` launches; `start.bat
+    --local` runs natively). There is no production image (no `next build`,
+    no TLS-terminating proxy). Docker-mode data lives in the
+    `tam-backend-data` volume, separate from `backend/data/` (§3).
 12. **Frontend dependency advisories.** The old `STATUS.md` note of 8 `npm
     audit` findings (incl. a critical Next.js advisory) predates Dependabot;
     open Dependabot PRs (#30, #38 bump `next`) are the current tracking
