@@ -26,7 +26,10 @@ ever introduced — see [DECISIONS.md](DECISIONS.md).
 
 All paths are relative to the backend's launch directory (normally
 `backend/`), configurable via env vars in `config.py`, and created at
-startup. The whole tree is gitignored (`backend/data/`).
+startup. The whole tree is gitignored (`backend/data/`). Under Docker
+(`start.bat` → `docker-compose.yml`) the same layout lives in the
+`tam-backend-data` named volume at `/app/data`, seeded once from
+`backend/data/` and separate from it afterwards.
 
 ```
 data/

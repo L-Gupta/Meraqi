@@ -10,6 +10,7 @@
 - `middleware.ts` — redirects based on `tam_session` cookie **presence** only (`/` → `/login`; signed-in users on public pages → `/upload`; signed-out users on protected pages → `/login`).
 - `docs/` — early-May specs for the **mock** data contract, not the real API.
 - Config: `package.json` (scripts `dev`/`build`/`start`/`lint`), `next.config.ts`, `tailwind.config.ts` (tokens, radius, shadows, `darkMode: class`), `tsconfig.json`, `postcss.config.mjs`.
+- `Dockerfile` / `.dockerignore` — local-dev `next dev` image used by the root `docker-compose.yml`. Source is bind-mounted; `node_modules` and `.next` live in container volumes.
 
 **How it fits in:** Browser → `lib/api/fdd-client.ts` (cookie credentials) → FastAPI. The Copilot route also calls Anthropic directly from the Next.js server using its own `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` (in `frontend/.env.local`).
 

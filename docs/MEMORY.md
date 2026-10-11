@@ -3,7 +3,7 @@
 > The single source of truth for "where are we right now." Read this first
 > in any new session, before [PHASES.md](PHASES.md). Edit in place — it's a
 > snapshot, not a log (history lives in git and
-> [PHASES_ARCHIVE.md](PHASES_ARCHIVE.md)). Last updated 2026-09-27.
+> [PHASES_ARCHIVE.md](PHASES_ARCHIVE.md)). Last updated 2026-10-11.
 
 ---
 
@@ -12,13 +12,18 @@
 - **Active phase:** [Phase 0 — Fix the Dashboard Display Bug](PHASES.md#phase-0--fix-the-dashboard-display-bug-current--blocker).
   Diagnosis only; no fix written; root cause not confirmed live. Next:
   Phase 1 (trust audit). No numbered phase is complete yet.
-- **`main`:** docs-only merges since PR #29 (PR #40 docs refresh,
+- **`main`:** docs-only merges since PR #29 (latest: PR #42 context hierarchy,
   2026-09-27). No code has changed since 2026-08-05.
 - **In flight:**
-  - Docs refresh merged as PR #40; the `.claude/rules/` split follows on
-    `chore/rules-to-claude-dir`.
+  - `feat/docker-compose`: `start.bat` now runs the stack in Docker by
+    default (`--local` = native). Verified locally on 2026-10-11 (cold
+    start, seeding, health, login, hot reload). Committed but not pushed,
+    no PR yet. Docker-mode data lives in the `tam-backend-data` volume,
+    separate from `backend/data/`.
   - `feat/qoe-adjustment-override` — uncommitted QoE override work, blocked
-    on a product decision (Phase 2). Don't build on it.
+    on a product decision (Phase 2). Don't build on it. Those four modified
+    files are in the working tree (unstaged); they carried over when
+    `feat/docker-compose` was branched from `main`.
 - **Open Dependabot PRs:** #30, #32–#38 (npm), untriaged.
 
 ---
@@ -80,6 +85,10 @@ Full text in [PHASES.md](PHASES.md) Parking Lot → "Open decisions":
   (TESTING.md §6).
 - `narrative_drafter` missing from `deal_store` stage bookkeeping
   (ARCHITECTURE.md §10 item 9).
+- Login (and reset-token lookup) scans and decrypts every file in
+  `data/users/` (`user_store.py` globs `*.json`). The local store has 667
+  users, mostly test leftovers. This is O(n) per login, and it's why a slow
+  disk shows up straight away (2026-10-11).
 
 ---
 
